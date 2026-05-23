@@ -2,7 +2,7 @@
 This was a project I created with Claude AI because I wanted a SIEM environment I could learn with in order to expand my knowledge of blue team activities. This turned into something I wanted to polish and share with others.
 # HomeSIEM v3 — Personal SOC Training Platform
 
-## Quick Start
+## Installation
 1. Install Python 3.8+
 2. In command prompt `pip install flask requests`
 3. Double-click `start_siem.bat` (Windows) or run `python siem.py`
