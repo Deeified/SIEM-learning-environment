@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeSIEM v3</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+:root{
+  --bg:#0a0c0f;--surface:#111418;--surface2:#171b20;--surface3:#1d2228;
+  --border:#1e2329;--border2:#252c35;--border3:#2e3642;
+  --text:#c8d0db;--text-dim:#5a6475;--text-bright:#e8edf5;
+  --accent:#00d4ff;--accent-dim:rgba(0,212,255,.08);--accent-border:rgba(0,212,255,.2);
+  --critical:#ff3b5c;--critical-dim:rgba(255,59,92,.1);
+  --high:#ff7b35;--high-dim:rgba(255,123,53,.1);
+  --medium:#f5c518;--medium-dim:rgba(245,197,24,.1);
+  --low:#4caf7d;--low-dim:rgba(76,175,125,.1);
+  --green:#00ff88;--green-dim:rgba(0,255,136,.08);
+  --purple:#a855f7;--purple-dim:rgba(168,85,247,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;min-height:100vh;overflow-x:hidden}
+/* ── Topbar ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;gap:10px}
+.logo{display:flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--text-bright);white-space:nowrap}
+.logo-icon{width:24px;height:24px;background:var(--accent);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.nav-tabs{display:flex;gap:1px;overflow-x:auto;scrollbar-width:none}
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tab{padding:4px 11px;border-radius:3px;cursor:pointer;font-size:10px;color:var(--text-dim);border:none;background:none;font-family:'IBM Plex Mono',monospace;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.nav-tab:hover{color:var(--text);background:var(--surface2)}
+.nav-tab.active{color:var(--accent);background:var(--accent-dim);border:1px solid var(--accent-border)}
+.nav-tab.war-active{color:var(--critical);background:var(--critical-dim);border:1px solid rgba(255,59,92,.3);animation:warPulse 1s infinite}
+@keyframes warPulse{0%,100%{opacity:1}50%{opacity:.7}}
+.statusbar{display:flex;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim);flex-shrink:0}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;display:inline-block}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.live-pill{display:inline-flex;align-items:center;gap:4px;color:var(--green);border:1px solid rgba(0,255,136,.2);background:rgba(0,255,136,.06);border-radius:3px;padding:2px 6px;font-size:9px}
+/* ── Analyst HUD ── */
+.analyst-hud{display:flex;align-items:center;gap:8px;padding:3px 9px;background:var(--surface2);border:1px solid var(--border2);border-radius:5px;cursor:pointer;transition:border-color .15s;flex-shrink:0}
+.analyst-hud:hover{border-color:var(--accent-border)}
+.hud-level{font-size:10px;color:var(--accent);font-family:'IBM Plex Mono',monospace;font-weight:700}
+.hud-name{font-size:9px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace}
+.hud-xp-bar{width:50px;height:3px;background:var(--border2);border-radius:2px;overflow:hidden}
+.hud-xp-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .5s ease}
+/* ── Difficulty badge ── */
+.diff-badge{padding:2px 8px;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;cursor:pointer;border:1px solid}
+/* ── Layout ── */
+.main{padding:14px 16px;display:none}
+.main.active{display:block}
+.stat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px}
+.stat-card.c-accent{border-left:3px solid var(--accent)}.stat-card.c-critical{border-left:3px solid var(--critical)}.stat-card.c-high{border-left:3px solid var(--high)}
+.stat-label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;font-family:'IBM Plex Mono',monospace}
+.stat-value{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700;color:var(--text-bright);line-height:1}
+.stat-value.v-accent{color:var(--accent)}.stat-value.v-critical{color:var(--critical)}.stat-value.v-high{color:var(--high)}
+.stat-sub{font-size:9px;color:var(--text-dim);margin-top:3px;font-family:'IBM Plex Mono',monospace}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);font-family:'IBM Plex Mono',monospace}
+.grid-3{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.flex-col{display:flex;flex-direction:column;gap:12px}
+/* ── Badges ── */
+.sev{display:inline-flex;align-items:center;padding:1px 6px;border-radius:3px;font-size:9px;font-family:'IBM Plex Mono',monospace;font-weight:600;text-transform:uppercase}
+.sev-critical{background:var(--critical-dim);color:var(--critical);border:1px solid rgba(255,59,92,.25)}
+.sev-high{background:var(--high-dim);color:var(--high);border:1px solid rgba(255,123,53,.25)}
+.sev-medium{background:var(--medium-dim);color:var(--medium);border:1px solid rgba(245,197,24,.25)}
+.sev-low{background:var(--low-dim);color:var(--low);border:1px solid rgba(76,175,125,.25)}
+.st{display:inline-flex;align-items:center;padding:1px 6px;border-radius:3px;font-size:9px;font-family:'IBM Plex Mono',monospace}
+.st-open{background:rgba(255,59,92,.1);color:#ff8fa3}.st-investigating{background:rgba(245,197,24,.1);color:var(--medium)}.st-resolved{background:rgba(76,175,125,.1);color:var(--low)}.st-false_positive{background:rgba(90,100,117,.2);color:var(--text-dim)}
+.vd{display:inline-flex;align-items:center;padding:1px 6px;border-radius:3px;font-size:9px;font-family:'IBM Plex Mono',monospace;font-weight:700;text-transform:uppercase}
+.vd-correct{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.25)}
+.vd-incorrect{background:rgba(255,59,92,.1);color:var(--critical);border:1px solid rgba(255,59,92,.25)}
+.vd-partial{background:rgba(245,197,24,.1);color:var(--medium);border:1px solid rgba(245,197,24,.25)}
+/* ── Alert list ── */
+.alert-list{max-height:320px;overflow-y:auto}
+.alert-list::-webkit-scrollbar{width:3px}.alert-list::-webkit-scrollbar-thumb{background:var(--border2)}
+.col-hdr{display:grid;grid-template-columns:68px 58px 1fr 98px 80px 72px 76px;padding:5px 12px;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;gap:6px}
+.alert-row{display:grid;grid-template-columns:68px 58px 1fr 98px 80px 72px 76px;padding:7px 12px;border-bottom:1px solid var(--border);align-items:center;gap:6px;cursor:pointer;transition:background .1s}
+.alert-row:hover{background:var(--surface2)}.alert-row.sel{background:var(--accent-dim);border-left:2px solid var(--accent)}
+.alert-row.flash{animation:flashRow .6s ease}
+@keyframes flashRow{0%{background:rgba(255,59,92,.2)}100%{background:transparent}}
+.a-title{color:var(--text-bright);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.a-ts{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim)}
+.a-ip{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent)}
+/* ── Buttons ── */
+.btn{padding:4px 10px;border-radius:4px;font-size:10px;cursor:pointer;border:1px solid;font-family:'IBM Plex Mono',monospace;transition:all .15s}
+.btn-ghost{background:transparent;border-color:var(--border2);color:var(--text)}.btn-ghost:hover{background:var(--surface2)}
+.btn-danger{background:var(--critical-dim);border-color:rgba(255,59,92,.3);color:var(--critical)}.btn-danger:hover{background:rgba(255,59,92,.2)}
+.btn-warn{background:var(--medium-dim);border-color:rgba(245,197,24,.3);color:var(--medium)}.btn-warn:hover{background:rgba(245,197,24,.2)}
+.btn-ok{background:var(--green-dim);border-color:rgba(0,255,136,.2);color:var(--green)}.btn-ok:hover{background:rgba(0,255,136,.15)}
+.btn-accent{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent)}.btn-accent:hover{background:rgba(0,212,255,.15)}
+.btn-purple{background:var(--purple-dim);border-color:rgba(168,85,247,.3);color:var(--purple)}.btn-purple:hover{background:rgba(168,85,247,.2)}
+.btn-hint{background:rgba(245,197,24,.08);border-color:rgba(245,197,24,.2);color:var(--medium)}
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;display:none;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:10px;width:100%;max-width:1080px;overflow:hidden;animation:slideIn .18s ease}
+@keyframes slideIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+.modal-top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.modal-title{font-size:14px;font-weight:600;color:var(--text-bright)}
+.modal-close{background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:2px 6px;border-radius:3px;font-family:monospace}.modal-close:hover{color:var(--text-bright);background:var(--surface3)}
+.mtabs{display:flex;gap:1px;padding:0 16px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.mtab{padding:8px 12px;font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.mtab:hover{color:var(--text)}.mtab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.modal-body{padding:16px;max-height:62vh;overflow-y:auto}
+.modal-body::-webkit-scrollbar{width:4px}.modal-body::-webkit-scrollbar-thumb{background:var(--border2)}
+.mtab-content{display:none}.mtab-content.active{display:block}
+/* ── Verdict ── */
+.verdict-panel{border-radius:7px;padding:16px;margin-bottom:16px;border:1px solid;animation:vpop .35s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes vpop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+.verdict-panel.correct{background:rgba(0,255,136,.05);border-color:rgba(0,255,136,.25)}
+.verdict-panel.incorrect{background:rgba(255,59,92,.05);border-color:rgba(255,59,92,.25)}
+.verdict-panel.partial{background:rgba(245,197,24,.05);border-color:rgba(245,197,24,.25)}
+.vp-heading{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.vp-icon{font-size:26px}.vp-label{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:700;letter-spacing:.06em}
+.vp-label.correct{color:var(--green)}.vp-label.incorrect{color:var(--critical)}.vp-label.partial{color:var(--medium)}
+.vp-feedback{font-size:12px;color:var(--text);line-height:1.7;margin-bottom:12px}
+.vp-tip{padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:5px;font-size:11px;color:var(--text-dim);line-height:1.6}
+.vp-tip strong{color:var(--accent)}
+.vp-xp{display:flex;align-items:center;gap:7px;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:11px}
+.xp-chip{padding:2px 9px;border-radius:3px;font-weight:700}
+.xp-pos{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.25)}
+.xp-neg{background:rgba(255,59,92,.1);color:var(--critical);border:1px solid rgba(255,59,92,.25)}
+.xp-neu{background:rgba(245,197,24,.1);color:var(--medium);border:1px solid rgba(245,197,24,.25)}
+.ind-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.ind-tag{padding:2px 8px;background:var(--surface3);border:1px solid var(--border2);border-radius:3px;font-size:10px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace}
+/* ── Hint ── */
+.hint-box{background:rgba(245,197,24,.04);border:1px solid rgba(245,197,24,.2);border-radius:6px;padding:11px 13px;margin-bottom:12px;animation:fadeIn .25s ease}
+/* ── Score ring ── */
+.score-wrap{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.score-ring{position:relative;width:72px;height:72px;flex-shrink:0}
+.score-ring svg{transform:rotate(-90deg)}
+.score-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:700}
+.factor-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-size:11px}
+.factor-w{font-family:'IBM Plex Mono',monospace;color:var(--accent);font-size:10px}
+/* ── Meta ── */
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:7px;margin-bottom:12px}
+.meta-card{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:8px 10px}
+.meta-card label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em;font-family:'IBM Plex Mono',monospace;display:block;margin-bottom:3px}
+.meta-card span{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-bright);word-break:break-all}
+/* ── Action bar ── */
+.action-bar{display:flex;gap:5px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--border);background:var(--surface2);align-items:center}
+.action-hint{font-size:9px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;margin-left:auto}
+/* ── Pkt inspector ── */
+.pkt-section{margin-bottom:10px;border:1px solid var(--border);border-radius:5px;overflow:hidden}
+.pkt-section-hdr{padding:6px 12px;background:var(--surface2);border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim);text-transform:uppercase;cursor:pointer;display:flex;justify-content:space-between;user-select:none}
+.pkt-section-hdr:hover{color:var(--text)}
+.pkt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:6px;padding:9px 12px}
+.pkt-field{display:flex;flex-direction:column;gap:2px}
+.pkt-field label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em;font-family:'IBM Plex Mono',monospace}
+.pkt-field span{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-bright);word-break:break-all}
+.pkt-field span.accent{color:var(--accent)}.pkt-field span.warn{color:var(--high)}.pkt-field span.ok{color:var(--low)}
+/* ── Hex ── */
+.hex-dump{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:9px 11px;overflow-x:auto;white-space:pre;line-height:1.7}
+.payload-raw{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:9px 11px;color:var(--medium);white-space:pre-wrap;word-break:break-all;line-height:1.6}
+/* ── Timeline ── */
+.tl-item{display:flex;gap:9px;padding:6px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+.tl-dot{width:7px;height:7px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.tl-dot-conn{background:var(--accent)}.tl-dot-auth{background:var(--critical)}
+/* ── Checklist ── */
+.check-item{display:flex;align-items:center;gap:8px;padding:7px 3px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:3px;transition:all .1s}
+.check-item:hover{background:var(--surface2);padding-left:7px}
+.check-box{width:14px;height:14px;border:2px solid var(--border2);border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s}
+.check-box.done{background:var(--low);border-color:var(--low);color:var(--bg)}
+.check-label{font-size:11px;color:var(--text);transition:color .15s}
+.check-label.done{color:var(--text-dim);text-decoration:line-through}
+/* ── MITRE ── */
+.mitre-card{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:10px;display:flex;flex-direction:column;gap:3px}
+/* ── Notes ── */
+.notes-input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:4px;padding:8px 10px;color:var(--text-bright);font-family:'IBM Plex Mono',monospace;font-size:11px;resize:vertical;min-height:70px;outline:none;transition:border-color .15s;line-height:1.6}
+.notes-input:focus{border-color:var(--accent)}
+/* ── Network map ── */
+#network-canvas{background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:default}
+.host-tooltip{position:absolute;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:10px 13px;font-size:11px;z-index:100;min-width:180px;pointer-events:none;display:none}
+/* ── Log viewer ── */
+.log-line{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;border-radius:2px;animation:fadeIn .2s ease;line-height:1.6;white-space:pre-wrap;word-break:break-all}
+.log-line:hover{background:var(--surface2)}
+.log-line.WARN{border-left:2px solid var(--medium)}
+.log-line.ERROR{border-left:2px solid var(--critical)}
+.log-line.INFO{border-left:2px solid var(--accent)}
+.log-ts{color:var(--text-dim)}.log-level-WARN{color:var(--medium)}.log-level-ERROR{color:var(--critical)}.log-level-INFO{color:var(--accent)}.log-body{color:var(--text)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:translateY(0)}}
+/* ── War room ── */
+.war-timer{font-family:'IBM Plex Mono',monospace;font-size:48px;font-weight:700;color:var(--critical);text-align:center;padding:24px 0;line-height:1}
+.war-timer.ok{color:var(--medium)}.war-timer.safe{color:var(--green)}
+.scenario-card{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:16px;cursor:pointer;transition:border-color .15s;margin-bottom:10px}
+.scenario-card:hover{border-color:var(--accent-border)}
+.scenario-card.locked{opacity:.5;cursor:not-allowed}
+/* ── Mission cards ── */
+.mission-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:13px;margin-bottom:8px;transition:border-color .15s}
+.mission-card.done{border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.03)}
+.mission-card.active{border-color:var(--accent-border)}
+.mission-progress-bar{height:4px;background:var(--border2);border-radius:2px;overflow:hidden;margin-top:8px}
+.mission-progress-fill{height:100%;border-radius:2px;transition:width .5s ease}
+/* ── Wiki ── */
+.wiki-tabs{display:flex;gap:4px;margin-bottom:14px}
+.wiki-tab{padding:5px 12px;border-radius:4px;font-size:11px;font-family:'IBM Plex Mono',monospace;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text-dim);transition:all .15s}
+.wiki-tab.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent)}
+.wiki-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:9px}
+.wiki-card h3{font-size:13px;color:var(--text-bright);font-weight:600;margin-bottom:6px}
+.wiki-card p{font-size:12px;color:var(--text-dim);line-height:1.65}
+.port-table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:11px}
+.port-table th{padding:6px 10px;text-align:left;background:var(--surface2);border-bottom:1px solid var(--border);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)}
+.port-table td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text)}
+.port-table tr:hover td{background:var(--surface2)}
+/* ── Simulate ── */
+.sim-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:9px;padding:12px}
+.sim-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:12px;transition:border-color .2s}
+.sim-card.c-critical{border-color:rgba(255,59,92,.2)}.sim-card.c-high{border-color:rgba(255,123,53,.2)}.sim-card.c-medium{border-color:rgba(245,197,24,.2)}
+.sim-icon{font-size:18px;margin-bottom:6px}.sim-name{font-weight:600;color:var(--text-bright);font-size:12px;margin-bottom:3px}.sim-desc{font-size:10px;color:var(--text-dim);line-height:1.5;margin-bottom:8px}.sim-sev{font-size:10px;color:var(--text-dim);margin-bottom:7px;font-family:'IBM Plex Mono',monospace}
+.sim-log{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:8px 12px;font-family:'IBM Plex Mono',monospace;font-size:10px;margin:0 12px 12px;max-height:110px;overflow-y:auto;color:var(--green)}
+/* ── Rules ── */
+.rule-row{display:grid;grid-template-columns:60px 165px 1fr 82px 52px 86px;padding:9px 12px;border-bottom:1px solid var(--border);align-items:center;gap:8px}
+.toggle-sw{position:relative;width:30px;height:16px;display:inline-block}
+.toggle-sw input{opacity:0;width:0;height:0}
+.toggle-sl{position:absolute;cursor:pointer;inset:0;background:var(--border2);border-radius:16px;transition:.2s}
+.toggle-sl:before{position:absolute;content:"";height:10px;width:10px;left:3px;bottom:3px;background:var(--text-dim);border-radius:50%;transition:.2s}
+input:checked+.toggle-sl{background:rgba(0,212,255,.3)}
+input:checked+.toggle-sl:before{transform:translateX(14px);background:var(--accent)}
+/* ── Intel ── */
+.ip-chip{display:inline-flex;align-items:center;gap:4px;background:var(--critical-dim);border:1px solid rgba(255,59,92,.2);border-radius:3px;padding:2px 7px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--critical);margin:2px}
+.ip-chip .rm{cursor:pointer;color:var(--text-dim);font-size:12px;line-height:1}.ip-chip .rm:hover{color:var(--critical)}
+.ip-input{flex:1;background:var(--bg);border:1px solid var(--border2);border-radius:4px;padding:5px 9px;color:var(--text-bright);font-family:'IBM Plex Mono',monospace;font-size:11px;outline:none}.ip-input:focus{border-color:var(--accent)}
+/* ── Filter bar ── */
+.filter-bar{display:flex;gap:5px;padding:6px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.fbtn{padding:2px 8px;border-radius:3px;font-size:9px;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;transition:all .15s}
+.fbtn:hover{color:var(--text)}.fbtn.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent)}
+.fbtn.f-critical.active{background:var(--critical-dim);border-color:rgba(255,59,92,.3);color:var(--critical)}
+.fbtn.f-high.active{background:var(--high-dim);border-color:rgba(255,123,53,.3);color:var(--high)}
+/* ── Scorecard ── */
+.sc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:12px}
+.sc-card{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:12px;text-align:center}
+.sc-label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;font-family:'IBM Plex Mono',monospace;margin-bottom:5px}
+.sc-val{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700;color:var(--text-bright)}
+/* ── Level-up overlay ── */
+.levelup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:900;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+.levelup-overlay.show{display:flex;animation:fadeIn .25s ease}
+.levelup-card{background:var(--surface);border:2px solid var(--accent);border-radius:14px;padding:36px 56px;text-align:center;animation:levelPop .45s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes levelPop{from{transform:scale(.65);opacity:0}to{transform:scale(1);opacity:1}}
+/* ── Mission complete overlay ── */
+.mission-overlay{position:fixed;bottom:80px;right:20px;z-index:800;display:none;flex-direction:column;gap:7px}
+.mission-toast{background:var(--surface);border:1px solid rgba(0,255,136,.3);border-radius:7px;padding:11px 15px;animation:missionIn .3s ease;max-width:280px}
+@keyframes missionIn{from{transform:translateX(300px);opacity:0}to{transform:translateX(0);opacity:1}}
+/* ── Notif ribbon ── */
+.notif-ribbon{position:fixed;top:54px;right:16px;z-index:400;display:flex;flex-direction:column;gap:5px;pointer-events:none}
+.notif{background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:9px 12px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-bright);width:260px;animation:notifIn .2s ease;pointer-events:auto;cursor:pointer;display:flex;align-items:flex-start;gap:7px}
+.notif.critical-notif{border-left:3px solid var(--critical)}.notif.high-notif{border-left:3px solid var(--high)}
+@keyframes notifIn{from{transform:translateX(280px);opacity:0}to{transform:translateX(0);opacity:1}}
+/* ── Toast ── */
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--surface);border:1px solid var(--border2);border-radius:5px;padding:7px 16px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-bright);z-index:999;opacity:0;transition:all .2s ease;white-space:nowrap}
+.toast.vis{transform:translateX(-50%) translateY(0);opacity:1}
+.toast.ok{border-color:rgba(0,255,136,.3)}.toast.err{border-color:rgba(255,59,92,.3)}.toast.warn{border-color:rgba(245,197,24,.3)}
+/* ── Misc ── */
+.empty{padding:24px;text-align:center;color:var(--text-dim);font-size:11px;font-family:'IBM Plex Mono',monospace}
+.kbd{display:inline-flex;align-items:center;padding:1px 4px;background:var(--surface3);border:1px solid var(--border2);border-radius:2px;font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--text-dim)}
+.ev-log{font-family:'IBM Plex Mono',monospace;font-size:10px;max-height:160px;overflow-y:auto;padding:5px 7px}
+.ev-log::-webkit-scrollbar{width:3px}.ev-log::-webkit-scrollbar-thumb{background:var(--border2)}
+.ev-line{padding:2px 4px;display:flex;gap:6px;animation:fadeIn .2s ease}
+.ev-line:hover{background:var(--surface2)}
+.ev-t{color:var(--text-dim);flex-shrink:0}.ev-p{color:var(--accent);width:42px;flex-shrink:0}
+.ev-s{color:var(--low)}.ev-arr{color:var(--text-dim)}.ev-d{color:var(--high)}.ev-port{color:var(--medium)}.ev-sz{color:var(--text-dim);margin-left:auto}
+.traffic-row{display:flex;align-items:center;gap:8px;padding:5px 12px;border-bottom:1px solid var(--border)}
+.traffic-ip{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);width:100px;flex-shrink:0}
+.tbar-wrap{flex:1;height:3px;background:var(--border2);border-radius:2px;overflow:hidden}
+.tbar{height:100%;background:var(--accent);border-radius:2px;transition:width .5s ease;min-width:2px}
+.proto-row{display:flex;align-items:center;gap:7px;padding:3px 0}
+.proto-dot{width:6px;height:6px;border-radius:2px;flex-shrink:0}
+.search-box{background:var(--bg);border:1px solid var(--border2);border-radius:4px;padding:5px 9px;color:var(--text-bright);font-family:'IBM Plex Mono',monospace;font-size:11px;outline:none;width:220px}.search-box:focus{border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><div class="logo-icon">🛡</div>HomeSIEM v3</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showTab('dashboard',this)">Dashboard</button>
+    <button class="nav-tab" onclick="showTab('alerts',this)">Alerts <span id="abadge" style="color:var(--critical)"></span></button>
+    <button class="nav-tab" onclick="showTab('events',this)">Events</button>
+    <button class="nav-tab" onclick="showTab('logs',this)">Logs</button>
+    <button class="nav-tab" onclick="showTab('network',this)">Network Map</button>
+    <button class="nav-tab" onclick="showTab('missions',this)">Missions <span id="mbadge" style="color:var(--green)"></span></button>
+    <button class="nav-tab" onclick="showTab('simulate',this)">Simulate</button>
+    <button class="nav-tab" onclick="showTab('rules',this)">Rules</button>
+    <button class="nav-tab" onclick="showTab('wiki',this)">Wiki</button>
+    <button class="nav-tab" id="warroom-tab" onclick="showTab('warroom',this)">War Room</button>
+    <button class="nav-tab" onclick="showTab('intel',this)">Threat Intel</button>
+    <button class="nav-tab" onclick="showTab('scorecard',this)">Scorecard</button>
+    <button class="nav-tab" id="ctf-nav-tab" onclick="showTab('ctf',this)">&#x1F6A9; CTF</button>
+  </div>
+  <div class="statusbar">
+    <div class="analyst-hud" onclick="showTab('scorecard',document.querySelectorAll('.nav-tab')[11])">
+      <div><div class="hud-level" id="hud-level">LVL 1</div><div class="hud-name" id="hud-name">Trainee</div></div>
+      <div><div class="hud-xp-bar"><div class="hud-xp-fill" id="hud-xp-fill" style="width:0%"></div></div><div style="font-size:9px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;margin-top:1px" id="hud-xp-text">0 XP</div></div>
+    </div>
+    <div id="diff-btn" class="diff-badge" onclick="cycleDifficulty()" title="Click to change difficulty"></div>
+    <button id="sound-btn" onclick="toggleSound()" title="Toggle alert sounds" style="background:var(--surface2);border:1px solid var(--border2);border-radius:3px;padding:2px 8px;cursor:pointer;font-size:13px;line-height:1">🔔</button>
+    <div class="live-pill"><span class="live-dot"></span>LIVE</div>
+    <span>UP <span id="uptime" style="color:var(--accent)">0:00:00</span></span>
+    <span id="pkt-rate" style="color:var(--text-dim)">0 p/s</span>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD ══ -->
+<div id="tab-dashboard" class="main active">
+  <div class="stat-grid">
+    <div class="stat-card c-accent"><div class="stat-label">Packets</div><div class="stat-value v-accent" id="s-pkts">0</div><div class="stat-sub">this session</div></div>
+    <div class="stat-card"><div class="stat-label">Data</div><div class="stat-value" id="s-bytes">0 KB</div><div class="stat-sub">processed</div></div>
+    <div class="stat-card"><div class="stat-label">Alerts</div><div class="stat-value" id="s-total">0</div><div class="stat-sub">generated</div></div>
+    <div class="stat-card c-high"><div class="stat-label">Open</div><div class="stat-value v-high" id="s-open">0</div><div class="stat-sub">open alerts</div></div>
+    <div class="stat-card c-critical"><div class="stat-label">Critical</div><div class="stat-value v-critical" id="s-crit">0</div><div class="stat-sub">unresolved</div></div>
+    <div class="stat-card"><div class="stat-label">Blocked IPs</div><div class="stat-value" id="s-blocked">0</div></div>
+  </div>
+  <div class="grid-3">
+    <div class="panel">
+      <div class="panel-hdr">Recent Alerts <div class="live-pill"><span class="live-dot"></span>LIVE</div></div>
+      <div class="col-hdr"><span>SEV</span><span>TIME</span><span>TITLE</span><span>SOURCE IP</span><span>STATUS</span><span>VERDICT</span><span>ACT</span></div>
+      <div class="alert-list" id="dash-alerts"><div class="empty">No alerts yet — Simulate → Launch an attack.</div></div>
+    </div>
+    <div class="flex-col">
+      <div class="panel"><div class="panel-hdr">Top Talkers</div><div id="top-talkers"></div></div>
+      <div class="panel"><div class="panel-hdr">Protocol Mix</div><div style="padding:8px 12px" id="proto-list"></div></div>
+    </div>
+  </div>
+  <div class="panel"><div class="panel-hdr">Live Event Feed</div><div class="ev-log" id="ev-log"></div></div>
+</div>
+
+<!-- ══ ALERTS ══ -->
+<div id="tab-alerts" class="main">
+  <div class="panel">
+    <div class="panel-hdr">Alert Management <button class="btn btn-ghost" onclick="clearAlerts()">Clear All</button></div>
+    <div class="filter-bar">
+      <button class="fbtn active" onclick="setFilter('all','severity',this)">All</button>
+      <button class="fbtn f-critical" onclick="setFilter('critical','severity',this)">Critical</button>
+      <button class="fbtn f-high" onclick="setFilter('high','severity',this)">High</button>
+      <button class="fbtn f-medium" onclick="setFilter('medium','severity',this)">Medium</button>
+      <button class="fbtn" onclick="setFilter('open','status',this)">Open</button>
+      <button class="fbtn" onclick="setFilter('resolved','status',this)">Resolved</button>
+    </div>
+    <div class="col-hdr"><span>SEV</span><span>TIME</span><span>TITLE</span><span>SOURCE IP</span><span>STATUS</span><span>VERDICT</span><span>ACT</span></div>
+    <div class="alert-list" id="full-alerts" style="max-height:72vh"></div>
+  </div>
+</div>
+
+<!-- ══ EVENTS ══ -->
+<div id="tab-events" class="main">
+  <div class="panel">
+    <div class="panel-hdr">Raw Event Stream <div class="live-pill"><span class="live-dot"></span>LIVE</div></div>
+    <div class="ev-log" id="full-ev-log" style="max-height:76vh;font-size:11px"></div>
+  </div>
+</div>
+
+<!-- ══ LOGS ══ -->
+<div id="tab-logs" class="main">
+  <div class="panel" style="margin-bottom:12px">
+    <div class="panel-hdr">
+      Log Correlation Engine
+      <div style="display:flex;gap:7px;align-items:center">
+        <select id="log-level-filter" onchange="fetchLogs()" style="background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 6px;border-radius:3px">
+          <option value="">All Levels</option><option>INFO</option><option>WARN</option><option>ERROR</option>
+        </select>
+        <input class="search-box" id="log-search" placeholder="Search logs..." oninput="fetchLogs()" style="width:180px">
+        <div class="live-pill"><span class="live-dot"></span>LIVE</div>
+      </div>
+    </div>
+    <div style="background:var(--bg);padding:8px;max-height:72vh;overflow-y:auto;font-family:'IBM Plex Mono',monospace" id="log-viewer">
+      <div class="empty">No log entries yet — simulate an attack to generate logs.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NETWORK MAP ══ -->
+<div id="tab-network" class="main">
+  <div class="panel">
+    <div class="panel-hdr">
+      Network Topology — Click a host to investigate
+      <div style="display:flex;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim);align-items:center">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--critical)"></span>Active Alert
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--low)"></span>Clean
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--text-dim)"></span>Inactive
+      </div>
+    </div>
+    <div style="position:relative;padding:10px">
+      <canvas id="network-canvas" width="760" height="400"></canvas>
+      <div class="host-tooltip" id="host-tooltip"></div>
+    </div>
+    <div id="host-detail" style="padding:12px;border-top:1px solid var(--border);display:none"></div>
+  </div>
+</div>
+
+<!-- ══ MISSIONS ══ -->
+<div id="tab-missions" class="main">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+    <div id="missions-beginner" class="panel"><div class="panel-hdr" style="color:var(--low)">Beginner Campaign</div><div style="padding:12px" id="m-beginner"></div></div>
+    <div id="missions-intermediate" class="panel"><div class="panel-hdr" style="color:var(--medium)">Intermediate Campaign</div><div style="padding:12px" id="m-intermediate"></div></div>
+    <div id="missions-advanced" class="panel"><div class="panel-hdr" style="color:var(--critical)">Advanced Campaign</div><div style="padding:12px" id="m-advanced"></div></div>
+  </div>
+</div>
+
+<!-- ══ SIMULATE ══ -->
+<div id="tab-simulate" class="main">
+  <div class="panel">
+    <div class="panel-hdr">Attack Simulator — 10 Attack Types</div>
+    <div class="sim-grid">
+      <div class="sim-card c-high"><div class="sim-icon">🔍</div><div class="sim-name">Port Scan</div><div class="sim-desc">Multi-port reconnaissance probe.</div><div class="sim-sev">HIGH · R001</div><button class="btn btn-warn" onclick="simulate('port_scan')">Launch</button></div>
+      <div class="sim-card c-critical"><div class="sim-icon">🔐</div><div class="sim-name">Brute Force</div><div class="sim-desc">SSH credential stuffing attack.</div><div class="sim-sev">CRITICAL · R002</div><button class="btn btn-danger" onclick="simulate('brute_force')">Launch</button></div>
+      <div class="sim-card c-critical"><div class="sim-icon">📡</div><div class="sim-name">C2 Beacon</div><div class="sim-desc">Internal host calling C2 server.</div><div class="sim-sev">CRITICAL · R003</div><button class="btn btn-danger" onclick="simulate('c2_beacon')">Launch</button></div>
+      <div class="sim-card c-medium"><div class="sim-icon">📤</div><div class="sim-name">Data Exfil</div><div class="sim-desc">Large outbound data transfer.</div><div class="sim-sev">MEDIUM · R004</div><button class="btn btn-warn" onclick="simulate('data_exfil')">Launch</button></div>
+      <div class="sim-card c-critical"><div class="sim-icon">🚫</div><div class="sim-name">Blocked IP</div><div class="sim-desc">Known-bad IP attempting contact.</div><div class="sim-sev">CRITICAL · R005</div><button class="btn btn-danger" onclick="simulate('blocked_ip')">Launch</button></div>
+      <div class="sim-card c-high"><div class="sim-icon">🌐</div><div class="sim-name">DNS Tunnel</div><div class="sim-desc">DNS-based C2 and exfiltration.</div><div class="sim-sev">HIGH · R006</div><button class="btn btn-warn" onclick="simulate('dns_tunnel')">Launch</button></div>
+      <div class="sim-card c-high"><div class="sim-icon">🕸</div><div class="sim-name">ARP Spoof</div><div class="sim-desc">Man-in-the-middle via ARP poisoning.</div><div class="sim-sev">HIGH · R007</div><button class="btn btn-warn" onclick="simulate('arp_spoof')">Launch</button></div>
+      <div class="sim-card c-critical"><div class="sim-icon">🔒</div><div class="sim-name">Ransomware</div><div class="sim-desc">Mass file encryption staging.</div><div class="sim-sev">CRITICAL · R008</div><button class="btn btn-danger" onclick="simulate('ransomware')">Launch</button></div>
+      <div class="sim-card c-critical"><div class="sim-icon">↔️</div><div class="sim-name">Lateral Movement</div><div class="sim-desc">Pass-the-hash internal pivot.</div><div class="sim-sev">CRITICAL · R009</div><button class="btn btn-danger" onclick="simulate('lateral_movement')">Launch</button></div>
+      <div class="sim-card c-critical"><div class="sim-icon">⬆️</div><div class="sim-name">Priv Escalation</div><div class="sim-desc">Sudo abuse / token impersonation.</div><div class="sim-sev">CRITICAL · R010</div><button class="btn btn-danger" onclick="simulate('priv_escalation')">Launch</button></div>
+      <div class="sim-card"><div class="sim-icon">💥</div><div class="sim-name">Full Scenario</div><div class="sim-desc">All attacks in sequence — full intrusion simulation.</div><div class="sim-sev">ALL LEVELS</div><button class="btn btn-accent" onclick="simulateAll()">Run All</button></div>
+    </div>
+    <div class="sim-log" id="sim-log">// Ready. Click an attack type to inject...<br></div>
+  </div>
+</div>
+
+<!-- ══ RULES ══ -->
+<div id="tab-rules" class="main">
+  <div class="panel">
+    <div class="panel-hdr">Detection Rules (10)</div>
+    <div style="display:grid;grid-template-columns:60px 165px 1fr 82px 52px 86px;padding:5px 12px;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;gap:8px"><span>ID</span><span>NAME</span><span>DESCRIPTION</span><span>SEVERITY</span><span>HITS</span><span>ENABLED</span></div>
+    <div id="rules-list"></div>
+  </div>
+</div>
+
+<!-- ══ WIKI ══ -->
+<div id="tab-wiki" class="main">
+  <div class="wiki-tabs">
+    <button class="wiki-tab active" onclick="showWikiTab('attacks',this)">Attack Playbooks</button>
+    <button class="wiki-tab" onclick="showWikiTab('ports',this)">Port Reference</button>
+    <button class="wiki-tab" onclick="showWikiTab('concepts',this)">Core Concepts</button>
+  </div>
+  <div id="wiki-attacks"></div>
+  <div id="wiki-ports" style="display:none"></div>
+  <div id="wiki-concepts" style="display:none"></div>
+</div>
+
+<!-- ══ WAR ROOM ══ -->
+<div id="tab-warroom" class="main">
+  <div id="wr-lobby">
+    <div class="panel" style="margin-bottom:12px">
+      <div class="panel-hdr">⚔️ War Room — High-Pressure Incident Response</div>
+      <div style="padding:16px;font-size:12px;color:var(--text-dim);line-height:1.7">
+        War Room scenarios throw multiple simultaneous attacks at you under time pressure. Correctly resolve the required number of alerts before the clock runs out to earn bonus XP. <strong style="color:var(--text)">Speed matters. Accuracy matters more.</strong>
+      </div>
+    </div>
+    <div id="wr-scenarios"></div>
+  </div>
+  <div id="wr-active" style="display:none">
+    <div class="panel" style="margin-bottom:12px">
+      <div class="panel-hdr" id="wr-name">War Room Active</div>
+      <div style="padding:20px;text-align:center">
+        <div class="war-timer safe" id="wr-timer">5:00</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:8px" id="wr-status">Waiting for attacks...</div>
+        <div style="display:flex;justify-content:center;gap:30px;margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:12px">
+          <div>Cleared: <span id="wr-cleared" style="color:var(--green)">0</span></div>
+          <div>Required: <span id="wr-required" style="color:var(--accent)">0</span></div>
+          <div>Open: <span id="wr-open" style="color:var(--critical)">0</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr">War Room Alerts — Resolve these quickly</div>
+      <div class="col-hdr"><span>SEV</span><span>TIME</span><span>TITLE</span><span>SOURCE IP</span><span>STATUS</span><span>VERDICT</span><span>ACT</span></div>
+      <div class="alert-list" id="wr-alerts" style="max-height:50vh"></div>
+    </div>
+    <div style="margin-top:12px;text-align:center">
+      <button class="btn btn-danger" onclick="abortWarRoom()">Abort Scenario</button>
+    </div>
+  </div>
+  <div id="wr-results" style="display:none">
+    <div class="panel">
+      <div class="panel-hdr">After Action Report</div>
+      <div style="padding:24px;text-align:center" id="wr-results-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ THREAT INTEL ══ -->
+<div id="tab-intel" class="main">
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-hdr">IP Block List</div>
+      <div style="display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border)">
+        <input class="ip-input" id="block-input" placeholder="Enter IP to block…" onkeydown="if(event.key==='Enter')blockIpManual()">
+        <button class="btn btn-danger" onclick="blockIpManual()">Block</button>
+      </div>
+      <div id="blocked-list" style="padding:8px 12px;display:flex;flex-wrap:wrap;min-height:40px"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr">Summary</div>
+      <div style="padding:16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text);line-height:2.2">
+        Blocked IPs: <span id="i-blocked" style="color:var(--critical)">0</span><br>
+        Active Rules: <span id="i-rules" style="color:var(--accent)">10</span><br>
+        Total Alerts: <span id="i-total" style="color:var(--high)">0</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCORECARD ══ -->
+<div id="tab-scorecard" class="main">
+  <div class="grid-2">
+    <div class="panel" style="margin-bottom:12px">
+      <div class="panel-hdr">Analyst Performance</div>
+      <div style="padding:18px">
+        <div style="display:flex;align-items:center;gap:18px;margin-bottom:18px">
+          <div style="text-align:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim);margin-bottom:3px">RANK</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;color:var(--accent)" id="sc-level">1</div>
+            <div style="font-size:11px;color:var(--text-dim)" id="sc-level-name">Trainee</div>
+          </div>
+          <div style="flex:1">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim)"><span id="sc-xp">0 XP</span><span id="sc-next">200 to next</span></div>
+            <div style="height:8px;background:var(--border2);border-radius:4px;overflow:hidden"><div id="sc-xp-bar" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--purple));border-radius:4px;transition:width .6s ease;width:0%"></div></div>
+          </div>
+        </div>
+        <div class="sc-grid">
+          <div class="sc-card"><div class="sc-label">Correct</div><div class="sc-val" id="sc-correct" style="color:var(--green)">0</div></div>
+          <div class="sc-card"><div class="sc-label">Partial</div><div class="sc-val" id="sc-partial" style="color:var(--medium)">0</div></div>
+          <div class="sc-card"><div class="sc-label">Incorrect</div><div class="sc-val" id="sc-incorrect" style="color:var(--critical)">0</div></div>
+          <div class="sc-card"><div class="sc-label">Accuracy</div><div class="sc-val" id="sc-accuracy" style="color:var(--accent)">—</div></div>
+        </div>
+        <div class="sc-grid">
+          <div class="sc-card"><div class="sc-label">Scored</div><div class="sc-val" id="sc-total">0</div></div>
+          <div class="sc-card"><div class="sc-label">Streak</div><div class="sc-val" id="sc-streak" style="color:var(--medium)">0</div></div>
+          <div class="sc-card"><div class="sc-label">Best</div><div class="sc-val" id="sc-best">0</div></div>
+          <div class="sc-card"><div class="sc-label">War Rooms</div><div class="sc-val" id="sc-warrooms" style="color:var(--purple)">0</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr">Keyboard Shortcuts</div>
+      <div style="padding:14px;display:flex;flex-wrap:wrap;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim)">
+        <div style="display:flex;align-items:center;gap:5px"><span class="kbd">R</span> Resolve</div>
+        <div style="display:flex;align-items:center;gap:5px"><span class="kbd">I</span> Investigating</div>
+        <div style="display:flex;align-items:center;gap:5px"><span class="kbd">F</span> False positive</div>
+        <div style="display:flex;align-items:center;gap:5px"><span class="kbd">B</span> Block IP</div>
+        <div style="display:flex;align-items:center;gap:5px"><span class="kbd">H</span> Hint</div>
+        <div style="display:flex;align-items:center;gap:5px"><span class="kbd">P</span> Export PCAP</div>
+        <div style="display:flex;align-items:center;gap:5px"><span class="kbd">Esc</span> Close</div>
+        <div style="display:flex;align-items:center;gap:5px"><span class="kbd">← →</span> Navigate</div>
+        <div style="display:flex;align-items:center;gap:5px"><span class="kbd">D</span> Cycle difficulty</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CTF MODE ══ -->
+<div id="tab-ctf" class="main">
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start">
+
+    <!-- Left: challenge list + active challenge -->
+    <div>
+      <!-- Category filter -->
+      <div class="filter-bar" style="margin-bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 12px">
+        <button class="fbtn active" onclick="ctfSetCategory('all',this)">All</button>
+        <button class="fbtn" onclick="ctfSetCategory('Network Forensics',this)">Network Forensics</button>
+        <button class="fbtn" onclick="ctfSetCategory('Log Analysis',this)">Log Analysis</button>
+        <button class="fbtn" onclick="ctfSetCategory('Malware Indicators',this)">Malware Indicators</button>
+        <button class="fbtn" onclick="ctfSetCategory('Incident Response',this)">Incident Response</button>
+        <button class="fbtn" onclick="ctfSetCategory('Threat Hunting',this)">Threat Hunting</button>
+        <button class="btn btn-danger" style="margin-left:auto;font-size:9px" onclick="ctfReset()">Reset CTF</button>
+      </div>
+      <!-- Challenge cards -->
+      <div id="ctf-challenge-list"></div>
+      <!-- Active challenge workspace -->
+      <div id="ctf-workspace" style="display:none"></div>
+    </div>
+
+    <!-- Right: scoreboard -->
+    <div class="panel" style="position:sticky;top:62px">
+      <div class="panel-hdr">🏆 CTF Scoreboard</div>
+      <div style="padding:14px">
+        <div style="text-align:center;margin-bottom:16px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim);margin-bottom:4px">TOTAL SCORE</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:36px;font-weight:700;color:var(--accent)" id="ctf-total-pts">0</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim)" id="ctf-solved-count">0 / 12 challenges solved</div>
+        </div>
+        <div id="ctf-cat-scores"></div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="font-size:9px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px">Scoring Rules</div>
+          <div style="font-size:11px;color:var(--text-dim);line-height:1.8">
+            • All questions correct = flag unlocked<br>
+            • Time bonus: max points if &lt;10 min<br>
+            • Hint 1 costs 15–30 pts off final score<br>
+            • Hint 2 costs 25–50 pts off final score<br>
+            • XP awarded = points earned
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CTF FLAG MODAL ══ -->
+<div class="modal-overlay" id="ctf-flag-modal" onclick="if(event.target===this)document.getElementById('ctf-flag-modal').classList.remove('open')">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-top">
+      <div class="modal-title" id="ctf-flag-title">🚩 Flag Captured!</div>
+      <button class="modal-close" onclick="document.getElementById('ctf-flag-modal').classList.remove('open')">×</button>
+    </div>
+    <div style="padding:24px;text-align:center">
+      <div style="font-size:40px;margin-bottom:12px">🎉</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:var(--green);background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.25);border-radius:6px;padding:12px 16px;letter-spacing:.03em;margin-bottom:14px;word-break:break-all" id="ctf-flag-text"></div>
+      <div style="font-size:12px;color:var(--text-dim)" id="ctf-flag-pts"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ INVESTIGATION MODAL ══ -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-top">
+      <div>
+        <div style="font-size:9px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;margin-bottom:2px" id="m-rule-id"></div>
+        <div class="modal-title" id="m-title"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px">
+        <div id="m-sev"></div><div id="m-vbadge"></div>
+        <span id="m-diff" style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim)"></span>
+        <button class="btn btn-hint" onclick="getHint()">💡 Hint <span class="kbd">H</span></button>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+    </div>
+    <div class="mtabs">
+      <div class="mtab active" onclick="showMTab('overview',this)">Overview</div>
+      <div class="mtab" onclick="showMTab('packets',this)">Packets</div>
+      <div class="mtab" onclick="showMTab('hex',this)">Hex Dump</div>
+      <div class="mtab" onclick="showMTab('timeline',this)">Timeline</div>
+      <div class="mtab" onclick="showMTab('checklist',this)">Checklist</div>
+      <div class="mtab" onclick="showMTab('mitre',this)">MITRE</div>
+    </div>
+    <div class="modal-body">
+      <div class="mtab-content active" id="mt-overview">
+        <div id="m-hint-area"></div>
+        <div id="m-verdict-panel"></div>
+        <div class="score-wrap" id="m-score-wrap"></div>
+        <div class="meta-grid" id="m-meta"></div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:10px 12px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:12px" id="m-detail"></div>
+        <div>
+          <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em;font-family:'IBM Plex Mono',monospace;margin-bottom:5px">Investigation Notes</div>
+          <textarea class="notes-input" id="m-notes" placeholder="Document your findings here…"></textarea>
+        </div>
+      </div>
+      <div class="mtab-content" id="mt-packets"><div id="m-pkt-content"></div></div>
+      <div class="mtab-content" id="mt-hex">
+        <div style="font-size:10px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;margin-bottom:8px">48-byte hex dump. Export PCAP for full capture in Wireshark.</div>
+        <div class="hex-dump" id="m-hex-dump"></div>
+        <div style="margin-top:10px"><div style="font-size:9px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;margin-bottom:6px;text-transform:uppercase">Payload</div><div class="payload-raw" id="m-payload-raw"></div></div>
+        <div style="margin-top:7px;display:flex;gap:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim)"><span>Entropy: <span id="m-entropy" style="color:var(--medium)"></span></span><span>Encoding: <span id="m-encoding" style="color:var(--accent)"></span></span></div>
+      </div>
+      <div class="mtab-content" id="mt-timeline"><div style="font-size:10px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;margin-bottom:10px">Events from same source IP leading to this alert:</div><div id="m-timeline"></div></div>
+      <div class="mtab-content" id="mt-checklist"><div style="font-size:10px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;margin-bottom:10px">SOC Investigation Checklist:</div><div id="m-checklist"></div><div style="margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim)" id="m-check-prog"></div></div>
+      <div class="mtab-content" id="mt-mitre">
+        <div id="m-mitre" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:14px"></div>
+        <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:5px"><div style="font-size:9px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;margin-bottom:6px;text-transform:uppercase">Mitigations</div><div id="m-mitigations" style="font-size:11px;color:var(--text);line-height:1.8"></div></div>
+      </div>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-warn"   id="btn-inv"  onclick="submitAction('investigating')">Investigating <span class="kbd">I</span></button>
+      <button class="btn btn-ok"     id="btn-res"  onclick="submitAction('resolved')">Resolve <span class="kbd">R</span></button>
+      <button class="btn btn-ghost"  id="btn-fp"   onclick="submitAction('false_positive')">False Positive <span class="kbd">F</span></button>
+      <button class="btn btn-danger" id="btn-blk"  onclick="modalBlockIp()">Block IP <span class="kbd">B</span></button>
+      <button class="btn btn-purple" onclick="modalExportPcap()">⬇ PCAP <span class="kbd">P</span></button>
+      <div class="action-hint" id="action-hint"></div>
+      <button class="btn btn-accent" onclick="saveNotes()">Save Notes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ OVERLAYS ══ -->
+<div class="levelup-overlay" id="levelup-overlay" onclick="this.classList.remove('show')">
+  <div class="levelup-card">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px">⬆ Level Up!</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:700;color:var(--accent);margin-bottom:5px" id="lu-name"></div>
+    <div style="font-size:12px;color:var(--text-dim)" id="lu-sub"></div>
+    <div style="margin-top:14px;font-size:11px;color:var(--text-dim)">Click to continue</div>
+  </div>
+</div>
+
+<div class="mission-overlay" id="mission-overlay"></div>
+<div class="notif-ribbon" id="notif-ribbon"></div>
+<div class="toast" id="toast"></div>
+<div class="host-tooltip" id="host-tooltip"></div>
+
+<script>
+// ══ State ══════════════════════════════════════════════════════════════════
+let allAlerts=[], currentAlert=null, filterField='severity', filterVal='all';
+let lastPkts=0, lastAlertCount=0, modalOpen=false;
+let networkData=null, wikiLoaded=false;
+let warRoomInterval=null;
+let currentDifficulty='normal';
+
+// ══ Keyboard shortcuts ═════════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT')return;
+  if(e.key==='d'||e.key==='D'){cycleDifficulty();return;}
+  if(!modalOpen)return;
+  const m={'r':'resolved','i':'investigating','f':'false_positive'};
+  if(m[e.key]){e.preventDefault();submitAction(m[e.key]);}
+  if(e.key==='b'){e.preventDefault();modalBlockIp();}
+  if(e.key==='h'){e.preventDefault();getHint();}
+  if(e.key==='p'){e.preventDefault();modalExportPcap();}
+  if(e.key==='Escape')closeModal();
+  if(e.key==='ArrowRight')navigateAlert(1);
+  if(e.key==='ArrowLeft')navigateAlert(-1);
+});
+
+function navigateAlert(dir){
+  const list=allAlerts.filter(a=>filterVal==='all'||a[filterField]===filterVal);
+  const idx=list.findIndex(a=>a.id===currentAlert?.id);
+  const next=list[idx+dir];
+  if(next)openModal(next.id);
+}
+
+// ══ Tabs ════════════════════════════════════════════════════════════════════
+function showTab(name,btn){
+  document.querySelectorAll('.main').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(name==='network')drawNetwork();
+  if(name==='missions')fetchMissions();
+  if(name==='wiki'&&!wikiLoaded)loadWiki();
+  if(name==='ctf')fetchCTF();
+  if(name==='logs')fetchLogs();
+  if(name==='warroom')fetchWarRoom();
+}
+function showMTab(name,el){
+  document.querySelectorAll('.mtab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.mtab-content').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('mt-'+name).classList.add('active');
+}
+function showWikiTab(name,btn){
+  document.querySelectorAll('.wiki-tab').forEach(b=>b.classList.remove('active'));
+  ['attacks','ports','concepts'].forEach(n=>document.getElementById('wiki-'+n).style.display='none');
+  btn.classList.add('active');
+  document.getElementById('wiki-'+name).style.display='block';
+}
+
+// ══ Toast ═══════════════════════════════════════════════════════════════════
+function toast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast vis '+type;
+  setTimeout(()=>t.classList.remove('vis'),3000);
+}
+
+// ══ Helpers ═════════════════════════════════════════════════════════════════
+const sev=s=>`<span class="sev sev-${s}">${s}</span>`;
+const st=s=>`<span class="st st-${s}">${s.replace('_',' ')}</span>`;
+const vd=v=>v?`<span class="vd vd-${v}">${v==='correct'?'✓ OK':v==='incorrect'?'✗ WRONG':'~ PART'}</span>`:'';
+const ago=ts=>{const d=(Date.now()-new Date(ts))/1000;return d<60?Math.floor(d)+'s':d<3600?Math.floor(d/60)+'m':new Date(ts).toLocaleTimeString();};
+const fmtB=b=>b>1e9?(b/1e9).toFixed(1)+' GB':b>1e6?(b/1e6).toFixed(1)+' MB':b>1e3?(b/1e3).toFixed(1)+' KB':b+' B';
+const scoreColor=s=>s>=80?'var(--critical)':s>=60?'var(--high)':s>=35?'var(--medium)':'var(--low)';
+
+// ══ Notifications ═══════════════════════════════════════════════════════════
+let soundEnabled = true;
+const recentNotifTypes = {}; // dedup: attack_type -> last shown timestamp
+
+function toggleSound(){
+  soundEnabled = !soundEnabled;
+  const btn = document.getElementById('sound-btn');
+  btn.textContent = soundEnabled ? '🔔' : '🔕';
+  btn.style.color = soundEnabled ? 'var(--text)' : 'var(--text-dim)';
+  btn.style.borderColor = soundEnabled ? 'var(--border2)' : 'var(--border)';
+  toast(soundEnabled ? 'Alert sounds ON' : 'Alert sounds OFF', soundEnabled ? 'ok' : '');
+}
+
+function pushNotif(alert){
+  const ribbon = document.getElementById('notif-ribbon');
+  // Cap at 3 visible notifications
+  const existing = ribbon.querySelectorAll('.notif');
+  if(existing.length >= 3) return;
+  // Deduplicate: don't show same attack_type within 12 seconds
+  const typeKey = alert.attack_type || alert.rule_id || 'generic';
+  const now = Date.now();
+  if(recentNotifTypes[typeKey] && now - recentNotifTypes[typeKey] < 12000) return;
+  recentNotifTypes[typeKey] = now;
+
+  const cls = alert.severity==='critical' ? 'critical-notif' : 'high-notif';
+  const icon = alert.severity==='critical' ? '🚨' : '⚠️';
+  const div = document.createElement('div');
+  div.className = `notif ${cls}`;
+  div.innerHTML = `<div style="font-size:14px;flex-shrink:0">${icon}</div><div><div style="font-size:10px;font-weight:600;color:var(--text-bright);margin-bottom:1px">${alert.title}</div><div style="font-size:9px;color:var(--text-dim)">${alert.src_ip} — ${alert.severity.toUpperCase()}</div></div>`;
+  div.onclick = () => { openModal(alert.id); div.remove(); };
+  ribbon.appendChild(div);
+  if(alert.severity==='critical') playBeep();
+  setTimeout(() => { div.style.opacity='0'; div.style.transform='translateX(280px)'; div.style.transition='all .25s ease'; setTimeout(() => div.remove(), 260); }, 5000);
+}
+
+function playBeep(){
+  if(!soundEnabled) return;
+  try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const osc=ctx.createOscillator();const g=ctx.createGain();osc.connect(g);g.connect(ctx.destination);osc.frequency.value=880;g.gain.setValueAtTime(.07,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.25);osc.start();osc.stop(ctx.currentTime+.25);}catch(e){}
+}
+
+// ══ Alert rows ═══════════════════════════════════════════════════════════════
+function alertRow(a){
+  const sel=currentAlert?.id===a.id?'sel':'';
+  return `<div class="alert-row ${sel}" id="ar-${a.id}" onclick="openModal(${a.id})">
+    <span>${sev(a.severity)}</span>
+    <span class="a-ts">${ago(a.timestamp)}</span>
+    <span class="a-title">${a.title}</span>
+    <span class="a-ip">${a.src_ip||'—'}</span>
+    <span>${st(a.status)}</span>
+    <span>${vd(a.verdict)}</span>
+    <span style="display:flex;gap:3px">
+      ${a.status==='open'?`<button class="btn btn-ok" style="font-size:9px;padding:2px 5px" onclick="event.stopPropagation();quickEval(${a.id},'resolved')">Resolve</button>`:''}
+      <button class="btn btn-danger" style="font-size:9px;padding:2px 5px" onclick="event.stopPropagation();quickBlock(${a.id})">Block</button>
+    </span>
+  </div>`;
+}
+
+function renderAlerts(){
+  let list=allAlerts;
+  if(filterVal!=='all')list=list.filter(a=>a[filterField]===filterVal);
+  document.getElementById('full-alerts').innerHTML=list.length?list.map(alertRow).join(''):'<div class="empty">No alerts match this filter.</div>';
+  const top=allAlerts.slice(0,8);
+  document.getElementById('dash-alerts').innerHTML=top.length?top.map(alertRow).join(''):'<div class="empty">No alerts yet — Simulate → Launch an attack.</div>';
+  // War room
+  const wra=document.getElementById('wr-alerts');
+  if(wra)wra.innerHTML=allAlerts.filter(a=>a.status==='open').slice(0,20).map(alertRow).join('');
+  document.getElementById('abadge').textContent=allAlerts.filter(a=>a.status==='open').length>0?`(${allAlerts.filter(a=>a.status==='open').length})`:'';
+}
+
+function setFilter(val,field,btn){
+  filterVal=val;filterField=field;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');renderAlerts();
+}
+
+// ══ Fetch ════════════════════════════════════════════════════════════════════
+async function fetchStats(){
+  const d=await fetch('/api/stats').then(r=>r.json());
+  document.getElementById('uptime').textContent=d.uptime;
+  document.getElementById('s-pkts').textContent=d.total_packets.toLocaleString();
+  document.getElementById('s-bytes').textContent=fmtB(d.bytes_in);
+  document.getElementById('s-total').textContent=d.total_alerts;
+  document.getElementById('s-open').textContent=d.open_alerts;
+  document.getElementById('s-crit').textContent=d.critical_alerts;
+  document.getElementById('s-blocked').textContent=d.blocked_ips;
+  document.getElementById('pkt-rate').textContent=(d.total_packets-lastPkts)+' p/s';
+  lastPkts=d.total_packets;
+  currentDifficulty=d.difficulty||'normal';
+  updateDiffBadge();
+  if(d.top_talkers?.length){
+    const mx=d.top_talkers[0][1]||1;
+    document.getElementById('top-talkers').innerHTML=d.top_talkers.map(([ip,c])=>`<div class="traffic-row"><span class="traffic-ip">${ip}</span><div class="tbar-wrap"><div class="tbar" style="width:${c/mx*100}%"></div></div><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim);width:36px;text-align:right">${c}</span></div>`).join('');
+  }
+  const proto=d.protocols,tot=Object.values(proto).reduce((a,b)=>a+b,0)||1;
+  const colors=['#00d4ff','#00ff88','#f5c518','#ff7b35','#ff3b5c','#a855f7'];
+  document.getElementById('proto-list').innerHTML=Object.entries(proto).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([n,c],i)=>`<div class="proto-row"><div class="proto-dot" style="background:${colors[i%6]}"></div><span class="proto-name" style="font-family:'IBM Plex Mono',monospace;font-size:10px;flex:1">${n}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim)">${(c/tot*100).toFixed(0)}%</span></div>`).join('');
+  document.getElementById('i-blocked').textContent=d.blocked_ips;
+  document.getElementById('i-total').textContent=d.total_alerts;
+}
+
+async function fetchAlerts(){
+  const fresh=await fetch('/api/alerts?limit=200').then(r=>r.json());
+  if(fresh.length>lastAlertCount){
+    fresh.slice(0,fresh.length-lastAlertCount).forEach(a=>{
+      if(a.severity==='critical'||a.severity==='high')pushNotif(a);
+    });
+  }
+  lastAlertCount=fresh.length; allAlerts=fresh; renderAlerts();
+}
+
+async function fetchEvents(){
+  const evts=await fetch('/api/events?limit=100').then(r=>r.json());
+  const row=e=>{
+    const t=e.timestamp?new Date(e.timestamp).toLocaleTimeString():'';
+    const dir=e.direction==='outbound'?'→':'←';
+    return `<div class="ev-line"><span class="ev-t">${t}</span><span class="ev-p">${e.protocol||'UNK'}</span><span class="ev-s">${e.src_ip||'?'}</span><span class="ev-arr">${dir}</span><span class="ev-d">${e.dst_ip||'?'}</span>${e.dst_port?`<span class="ev-port">:${e.dst_port}</span>`:''}<span class="ev-sz">${fmtB(e.bytes||0)}</span></div>`;
+  };
+  document.getElementById('ev-log').innerHTML=evts.slice(0,25).map(row).join('');
+  document.getElementById('full-ev-log').innerHTML=evts.map(row).join('');
+}
+
+async function fetchLogs(){
+  const level=document.getElementById('log-level-filter')?.value||'';
+  const q=document.getElementById('log-search')?.value||'';
+  const params=new URLSearchParams({limit:300});
+  if(level)params.set('level',level);
+  if(q)params.set('q',q);
+  const logs=await fetch('/api/logs?'+params).then(r=>r.json());
+  const lv=document.getElementById('log-viewer');
+  if(!logs.length){lv.innerHTML='<div class="empty">No log entries match.</div>';return;}
+  lv.innerHTML=logs.map(l=>`<div class="log-line ${l.level}"><span class="log-ts">${new Date(l.ts).toLocaleTimeString()} </span><span class="log-level-${l.level}">[${l.level}] </span><span class="log-body">${l.line}</span></div>`).join('');
+}
+
+async function fetchRules(){
+  const rules=await fetch('/api/rules').then(r=>r.json());
+  const sc={critical:'var(--critical)',high:'var(--high)',medium:'var(--medium)',low:'var(--low)'};
+  document.getElementById('rules-list').innerHTML=rules.map(r=>`
+    <div class="rule-row">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim)">${r.rule_id}</span>
+      <span style="font-size:11px;font-weight:500;color:var(--text-bright)">${r.name}</span>
+      <span style="font-size:10px;color:var(--text-dim)">${r.description}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:${sc[r.severity]}">${r.severity.toUpperCase()}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent)">${r.trigger_count}</span>
+      <label class="toggle-sw"><input type="checkbox" ${r.enabled?'checked':''} onchange="toggleRule('${r.rule_id}')"><span class="toggle-sl"></span></label>
+    </div>`).join('');
+}
+
+async function fetchIntel(){
+  const d=await fetch('/api/threat_intel').then(r=>r.json());
+  document.getElementById('blocked-list').innerHTML=d.blocked_ips.length
+    ?d.blocked_ips.map(ip=>`<div class="ip-chip">${ip}<span class="rm" onclick="unblockIp('${ip}')">×</span></div>`).join('')
+    :'<div class="empty" style="width:100%;padding:10px">No IPs blocked.</div>';
+}
+
+async function fetchAnalyst(){
+  const d=await fetch('/api/analyst').then(r=>r.json());
+  document.getElementById('hud-level').textContent=`LVL ${d.level}`;
+  document.getElementById('hud-name').textContent=d.level_name;
+  document.getElementById('hud-xp-fill').style.width=d.level_pct+'%';
+  document.getElementById('hud-xp-text').textContent=d.xp+' XP';
+  document.getElementById('sc-level').textContent=d.level;
+  document.getElementById('sc-level-name').textContent=d.level_name;
+  document.getElementById('sc-xp').textContent=d.xp+' XP';
+  document.getElementById('sc-next').textContent=d.xp_to_next+' to next';
+  document.getElementById('sc-xp-bar').style.width=d.level_pct+'%';
+  document.getElementById('sc-correct').textContent=d.correct||0;
+  document.getElementById('sc-partial').textContent=d.partial||0;
+  document.getElementById('sc-incorrect').textContent=d.incorrect||0;
+  document.getElementById('sc-accuracy').textContent=(d.accuracy||0)+'%';
+  document.getElementById('sc-total').textContent=d.total_scored;
+  document.getElementById('sc-streak').textContent=(d.streak||0)+'🔥';
+  document.getElementById('sc-best').textContent=d.best_streak||0;
+  document.getElementById('sc-warrooms').textContent=d.war_rooms_completed||0;
+}
+
+async function fetchMissions(){
+  const missions=await fetch('/api/missions').then(r=>r.json());
+  const campaigns={Beginner:'m-beginner',Intermediate:'m-intermediate',Advanced:'m-advanced'};
+  const completed=missions.filter(m=>m.completed).length;
+  document.getElementById('mbadge').textContent=completed>0?`(${completed})`:'';
+  Object.values(campaigns).forEach(id=>document.getElementById(id).innerHTML='');
+  missions.forEach(m=>{
+    const el=document.getElementById(campaigns[m.campaign]);
+    if(!el)return;
+    const pct=Math.min(100,Math.round(m.progress/m.target*100));
+    const colorClass=m.completed?'var(--green)':m.progress>0?'var(--accent)':'var(--border2)';
+    el.innerHTML+=`<div class="mission-card ${m.completed?'done':m.progress>0?'active':''}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:5px">
+        <div style="font-size:12px;font-weight:600;color:${m.completed?'var(--green)':'var(--text-bright)'}">
+          ${m.completed?'✓ ':''} ${m.name}
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent)">+${m.xp_reward} XP</div>
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">${m.description}</div>
+      <div style="font-size:10px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace">${m.objective}</div>
+      <div class="mission-progress-bar">
+        <div class="mission-progress-fill" style="width:${pct}%;background:${colorClass}"></div>
+      </div>
+      <div style="font-size:9px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;margin-top:4px">${m.progress}/${m.target}</div>
+    </div>`;
+  });
+}
+
+// ══ Difficulty ════════════════════════════════════════════════════════════════
+async function cycleDifficulty(){
+  const levels=['easy','normal','hard'];
+  const idx=levels.indexOf(currentDifficulty);
+  const next=levels[(idx+1)%3];
+  await fetch('/api/difficulty',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({level:next})});
+  currentDifficulty=next; updateDiffBadge();
+  toast(`Difficulty: ${next.toUpperCase()}`,'ok');
+}
+function updateDiffBadge(){
+  const configs={'easy':['Easy','var(--low)','rgba(76,175,125,.15)','rgba(76,175,125,.3)'],'normal':['Normal','var(--accent)','var(--accent-dim)','var(--accent-border)'],'hard':['Hard','var(--critical)','var(--critical-dim)','rgba(255,59,92,.3)']};
+  const [label,color,bg,border]=configs[currentDifficulty]||configs.normal;
+  const btn=document.getElementById('diff-btn');
+  if(btn){btn.textContent=label;btn.style.color=color;btn.style.background=bg;btn.style.borderColor=border;}
+}
+
+// ══ Open Modal ════════════════════════════════════════════════════════════════
+async function openModal(id){
+  const a=await fetch(`/api/alerts/${id}`).then(r=>r.json());
+  currentAlert=a; modalOpen=true;
+  document.getElementById('m-rule-id').textContent=`${a.rule_id} — ${a.rule_name}`;
+  document.getElementById('m-title').textContent=a.title;
+  document.getElementById('m-sev').innerHTML=sev(a.severity);
+  document.getElementById('m-vbadge').innerHTML=vd(a.verdict);
+  const diff=a.difficulty||'normal';
+  const diffColors={'easy':'var(--low)','normal':'var(--accent)','hard':'var(--critical)'};
+  document.getElementById('m-diff').textContent=diff.toUpperCase();
+  document.getElementById('m-diff').style.color=diffColors[diff]||'var(--accent)';
+  document.getElementById('m-hint-area').innerHTML='';
+  if(a.verdict){showVerdictPanel(a.verdict,null,null,null);}
+  else{document.getElementById('m-verdict-panel').innerHTML='';document.getElementById('action-hint').textContent='Evaluate this alert. Press H for a hint.';}
+  const graded=!!a.verdict;
+  ['btn-inv','btn-res','btn-fp'].forEach(bid=>{const b=document.getElementById(bid);b.disabled=graded;b.style.opacity=graded?'.4':'1';});
+  // Score ring
+  const ts=a.threat_score||{}; const sc=ts.score||0; const clr=scoreColor(sc);
+  const r=31,circ=2*Math.PI*r,dash=circ*sc/100;
+  document.getElementById('m-score-wrap').innerHTML=`
+    <div class="score-ring">
+      <svg width="72" height="72" viewBox="0 0 72 72">
+        <circle cx="36" cy="36" r="${r}" fill="none" stroke="var(--border2)" stroke-width="6"/>
+        <circle cx="36" cy="36" r="${r}" fill="none" stroke="${clr}" stroke-width="6" stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/>
+      </svg>
+      <div class="score-num" style="color:${clr}">${sc}</div>
+    </div>
+    <div style="flex:1">
+      <div style="font-size:10px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;margin-bottom:4px">THREAT SCORE — <span style="color:${clr}">${ts.level||'LOW'}</span></div>
+      ${(ts.factors||[]).map(f=>`<div class="factor-row"><span>${f.label}</span><span class="factor-w">+${f.weight}</span></div>`).join('')}
+    </div>`;
+  const pkt=a.packet_detail||{},ip=pkt.ip||{},geo=pkt.geo||{},tr=pkt.transport||{};
+  document.getElementById('m-meta').innerHTML=`
+    <div class="meta-card"><label>Timestamp</label><span>${new Date(a.timestamp).toLocaleString()}</span></div>
+    <div class="meta-card"><label>Source IP</label><span style="color:var(--accent)">${a.src_ip||'?'}</span></div>
+    <div class="meta-card"><label>Country/ASN</label><span>${geo.src_country||'?'} ${geo.src_asn||''}</span></div>
+    <div class="meta-card"><label>Org</label><span>${geo.src_org||'?'}</span></div>
+    <div class="meta-card"><label>OS Fingerprint</label><span>${ip.os_fingerprint||'?'}</span></div>
+    <div class="meta-card"><label>TTL</label><span>${ip.ttl||'?'}</span></div>
+    <div class="meta-card"><label>Dst Port</label><span style="color:var(--medium)">${tr.dst_port||'?'}</span></div>
+    <div class="meta-card"><label>Packets</label><span>${a.packet_count||1}</span></div>`;
+  document.getElementById('m-detail').textContent=a.detail;
+  document.getElementById('m-notes').value=a.notes||'';
+  buildPacketInspector(a);
+  const pl=pkt.payload||{};
+  const hexLines=(pl.hex_dump||[]).map(line=>{const p=line.split('   ');return p.length>=3?`<span style="color:var(--text-dim)">${p[0]}</span>   <span style="color:var(--accent)">${p[1]}</span>   <span style="color:var(--low)">${p[2]}</span>`:line;});
+  document.getElementById('m-hex-dump').innerHTML=hexLines.join('\n');
+  document.getElementById('m-payload-raw').textContent=pl.raw_preview||'(empty)';
+  document.getElementById('m-entropy').textContent=pl.entropy||'?';
+  document.getElementById('m-encoding').textContent=pl.encoding||'None';
+  const tl=a.timeline||[];
+  document.getElementById('m-timeline').innerHTML=tl.length?tl.map(e=>`<div class="tl-item"><div class="tl-dot ${e.type==='auth_failure'?'tl-dot-auth':'tl-dot-conn'}"></div><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim);flex-shrink:0;width:72px">${e.time?new Date(e.time).toLocaleTimeString():'?'}</span><div><div style="font-size:11px;color:var(--text-bright)">${e.type==='auth_failure'?'Auth failure':'Connection'} — ${e.protocol||'?'} → ${e.dst_ip||'?'}:${e.dst_port||'?'}</div><div style="font-size:10px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;margin-top:1px">${e.src_ip} ${e.flags?'['+e.flags+']':''} ${fmtB(e.bytes||0)}</div></div></div>`).join(''):'<div class="empty">No related events found.</div>';
+  renderChecklist(a);
+  const mitre=a.mitre||[];
+  const mits={T1046:"Enable host-based firewalls. Monitor for port scan signatures.",T1110:"Account lockout policies. MFA. Monitor auth failures.",T1571:"Block non-standard ports at perimeter.",T1041:"Monitor outbound traffic. TLS inspection.",T1071:"DNS filtering. Block C2 domains.","T1071.004":"DNS RPZ/filtering. Analyse DNS logs.","T1557.002":"Enable Dynamic ARP Inspection (DAI).",T1486:"Network isolation. Restore from backup.",T1021:"Reset credentials. Network segmentation.",T1548:"Audit sudoers. Revoke elevated access."};
+  document.getElementById('m-mitre').innerHTML=mitre.length?mitre.map(m=>`<div class="mitre-card"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent)">${m.id}</div><div style="font-size:12px;color:var(--text-bright);font-weight:500">${m.name}</div><div style="font-size:10px;color:var(--text-dim)">${m.tactic}</div></div>`).join(''):'<div class="empty">No MITRE techniques mapped.</div>';
+  document.getElementById('m-mitigations').innerHTML=mitre.map(m=>`<b style="color:var(--accent)">${m.id}</b> — ${mits[m.id]||'See MITRE ATT&CK.'}`).join('<br>')||'N/A';
+  showMTab('overview',document.querySelector('.mtab'));
+  document.getElementById('modal-overlay').classList.add('open');
+  renderAlerts();
+}
+
+function buildPacketInspector(a){
+  const pkt=a.packet_detail||{};
+  const sections=[
+    {title:'Frame',icon:'📦',fields:pkt.frame?[['Number',pkt.frame.number],['Time',new Date(pkt.frame.time).toLocaleString()],['Length',pkt.frame.length+' bytes'],['Interface',pkt.frame.interface]]:[]},
+    {title:'Ethernet II',icon:'🔗',fields:pkt.ethernet?[['Src MAC',pkt.ethernet.src_mac],['Dst MAC',pkt.ethernet.dst_mac],['Type',pkt.ethernet.type]]:[]},
+    {title:'IPv4',icon:'🌐',fields:pkt.ip?[['Source',pkt.ip.src,'accent'],['Dest',pkt.ip.dst],['TTL',pkt.ip.ttl],['Protocol',pkt.ip.protocol],['ID',pkt.ip.id],['Flags',pkt.ip.flags],['Checksum',pkt.ip.checksum],['OS Fingerprint',pkt.ip.os_fingerprint,'warn']]:[]},
+    {title:(pkt.transport?.protocol||'TCP'),icon:'📡',fields:pkt.transport?[['Src Port',pkt.transport.src_port],['Dst Port',pkt.transport.dst_port,'warn'],...(pkt.transport.seq!=null?[['Seq',pkt.transport.seq],['Ack',pkt.transport.ack]]:[]),['Flags',pkt.transport.flags],['Window',pkt.transport.window_size]]:[]},
+    {title:'Geolocation',icon:'🌍',fields:pkt.geo?[['Country',pkt.geo.src_country],['ASN',pkt.geo.src_asn],['Org',pkt.geo.src_org,'warn'],['Dst Country',pkt.geo.dst_country]]:[],extra:pkt.service_banner?`<div style="padding:7px 12px;border-top:1px solid var(--border)"><div class="pkt-field"><label>Service Banner</label><span style="color:var(--low)">${pkt.service_banner}</span></div></div>`:''},
+  ];
+  document.getElementById('m-pkt-content').innerHTML=sections.map(s=>`
+    <div class="pkt-section">
+      <div class="pkt-section-hdr" onclick="toggleSection(this)"><span>${s.icon} ${s.title}</span><span>▾</span></div>
+      <div><div class="pkt-grid">${s.fields.map(([l,v,c])=>`<div class="pkt-field"><label>${l}</label><span ${c?`class="${c}"`:''}>${v||'—'}</span></div>`).join('')}</div>${s.extra||''}</div>
+    </div>`).join('');
+}
+
+function toggleSection(hdr){const body=hdr.nextElementSibling;const open=body.style.display!=='none';body.style.display=open?'none':'block';hdr.querySelector('span:last-child').textContent=open?'▸':'▾';}
+
+function renderChecklist(a){
+  const cl=a.checklist||[];const done=cl.filter(c=>c.done).length;
+  document.getElementById('m-checklist').innerHTML=cl.map(c=>`<div class="check-item" onclick="toggleCheck(${a.id},${c.id})"><div class="check-box ${c.done?'done':''}">${c.done?'✓':''}</div><span class="check-label ${c.done?'done':''}">${c.label}</span></div>`).join('');
+  document.getElementById('m-check-prog').textContent=`${done}/${cl.length} steps completed`;
+}
+
+async function toggleCheck(alertId,checkId){
+  const full=currentAlert?.id===alertId?currentAlert:await fetch(`/api/alerts/${alertId}`).then(r=>r.json());
+  const item=(full.checklist||[]).find(c=>c.id===checkId);
+  if(item)item.done=!item.done;
+  await fetch(`/api/alerts/${alertId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({checklist:full.checklist})});
+  currentAlert=full;renderChecklist(full);
+}
+
+// ══ Verdict panel ════════════════════════════════════════════════════════════
+function showVerdictPanel(verdict,feedback,tip,indicators){
+  const icons={correct:'✅',incorrect:'❌',partial:'⚠️'};
+  const labels={correct:'CORRECT',incorrect:'INCORRECT',partial:'PARTIAL'};
+  const detail=feedback?`<div class="vp-feedback">${feedback}</div>${tip?`<div class="vp-tip"><strong>Analyst Tip:</strong> ${tip}</div>`:''}${indicators?.length?`<div class="ind-list">${indicators.map(i=>`<span class="ind-tag">${i}</span>`).join('')}</div>`:''}`:
+    `<div class="vp-feedback" style="color:var(--text-dim)">Previously evaluated as <strong>${verdict}</strong>.</div>`;
+  document.getElementById('m-verdict-panel').innerHTML=`<div class="verdict-panel ${verdict}"><div class="vp-heading"><div class="vp-icon">${icons[verdict]}</div><div class="vp-label ${verdict}">${labels[verdict]}</div></div>${detail}</div>`;
+}
+
+// ══ Submit action ════════════════════════════════════════════════════════════
+async function submitAction(action){
+  if(!currentAlert)return;
+  if(currentAlert.verdict){toast('Already evaluated','');return;}
+  const res=await fetch(`/api/alerts/${currentAlert.id}/evaluate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})}).then(r=>r.json());
+  if(res.already_graded){toast('Already evaluated','');return;}
+  showVerdictPanel(res.verdict,res.feedback,res.tip,res.key_indicators);
+  const xpClass=res.xp>0?'xp-pos':res.xp<0?'xp-neg':'xp-neu';
+  const xpSign=res.xp>0?'+':'';
+  const vp=document.getElementById('m-verdict-panel').querySelector('.verdict-panel');
+  if(vp){const xpDiv=document.createElement('div');xpDiv.className='vp-xp';xpDiv.innerHTML=`<span class="xp-chip ${xpClass}">${xpSign}${res.xp_awarded||res.xp} XP</span><span style="color:var(--text-dim)">Total: ${res.total_xp} XP · Streak: ${res.streak}</span>`;vp.appendChild(xpDiv);}
+  document.getElementById('m-vbadge').innerHTML=vd(res.verdict);
+  ['btn-inv','btn-res','btn-fp'].forEach(id=>{const b=document.getElementById(id);b.disabled=true;b.style.opacity='.4';});
+  document.getElementById('action-hint').textContent='Alert evaluated. Save your notes above.';
+  currentAlert.verdict=res.verdict; currentAlert.status=action;
+  if(res.leveled_up)setTimeout(()=>showLevelUp(res.new_level,res.new_level_name),700);
+  if(res.missions_completed?.length)res.missions_completed.forEach(m=>showMissionComplete(m));
+  fetchAlerts();fetchAnalyst();fetchMissions();
+}
+
+function showLevelUp(level,name){
+  document.getElementById('lu-name').textContent=name;
+  document.getElementById('lu-sub').textContent=`Level ${level} achieved`;
+  const o=document.getElementById('levelup-overlay');o.classList.add('show');
+  playBeep();setTimeout(()=>o.classList.remove('show'),5000);
+}
+
+function showMissionComplete(m){
+  const overlay=document.getElementById('mission-overlay');
+  overlay.style.display='flex';
+  const div=document.createElement('div');
+  div.className='mission-toast';
+  div.innerHTML=`<div style="font-size:10px;color:var(--green);font-family:'IBM Plex Mono',monospace;margin-bottom:3px">🏆 MISSION COMPLETE</div><div style="font-size:12px;font-weight:600;color:var(--text-bright)">${m.name}</div><div style="font-size:11px;color:var(--accent);font-family:'IBM Plex Mono',monospace">+${m.xp_reward} XP</div>`;
+  overlay.appendChild(div);
+  document.getElementById('mbadge').style.color='var(--green)';
+  setTimeout(()=>{div.style.animation='notifOut .25s ease forwards';setTimeout(()=>{div.remove();if(!overlay.children.length)overlay.style.display='none';},250);},4000);
+}
+
+// ══ Hint ════════════════════════════════════════════════════════════════════
+async function getHint(){
+  if(!currentAlert)return;
+  const res=await fetch(`/api/alerts/${currentAlert.id}/hint`).then(r=>r.json());
+  if(res.disabled){toast('Hints disabled on Hard difficulty','err');return;}
+  document.getElementById('m-hint-area').innerHTML=`<div class="hint-box"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:9px;color:var(--medium);text-transform:uppercase;letter-spacing:.08em;font-family:'IBM Plex Mono',monospace">💡 Analyst Hint</span><span style="font-size:9px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace">${res.hint_num}/${res.total_hints}</span></div><div style="font-size:12px;color:var(--text);line-height:1.6">${res.hint}</div></div>`;
+  if(!res.more)toast('No more hints available','warn');
+}
+
+// ══ Other modal actions ══════════════════════════════════════════════════════
+async function modalBlockIp(){if(!currentAlert)return;const res=await fetch(`/api/alerts/${currentAlert.id}/block_ip`,{method:'POST'}).then(r=>r.json());if(res.success){toast(`IP ${res.blocked_ip} blocked`,'ok');fetchAlerts();fetchIntel();}}
+async function saveNotes(){if(!currentAlert)return;const notes=document.getElementById('m-notes').value;await fetch(`/api/alerts/${currentAlert.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes})});toast('Notes saved','ok');}
+function modalExportPcap(){if(!currentAlert)return;const a=document.createElement('a');a.href=`/api/alerts/${currentAlert.id}/pcap`;a.download=`homesiem_alert_${currentAlert.id}.pcap`;a.click();toast('PCAP downloading','ok');}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');modalOpen=false;currentAlert=null;renderAlerts();}
+async function quickEval(id,action){const res=await fetch(`/api/alerts/${id}/evaluate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})}).then(r=>r.json());if(!res.already_graded){const s=res.xp>0?'+':'';toast(`${res.verdict.toUpperCase()} ${s}${res.xp_awarded||res.xp} XP`,res.verdict==='correct'?'ok':res.verdict==='incorrect'?'err':'warn');if(res.leveled_up)setTimeout(()=>showLevelUp(res.new_level,res.new_level_name),400);if(res.missions_completed?.length)res.missions_completed.forEach(m=>showMissionComplete(m));fetchAlerts();fetchAnalyst();fetchMissions();}}
+async function quickBlock(id){const res=await fetch(`/api/alerts/${id}/block_ip`,{method:'POST'}).then(r=>r.json());if(res.success){toast(`Blocked ${res.blocked_ip}`,'ok');fetchAlerts();fetchIntel();}}
+
+// ══ Network Map ══════════════════════════════════════════════════════════════
+async function drawNetwork(){
+  networkData=await fetch('/api/network').then(r=>r.json());
+  const canvas=document.getElementById('network-canvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const hosts=networkData.hosts;
+  // Draw connections
+  networkData.connections.slice(0,20).forEach(c=>{
+    const sh=hosts.find(h=>h.ip===c.src),dh=hosts.find(h=>h.ip===c.dst);
+    if(!sh||!dh)return;
+    ctx.beginPath();ctx.moveTo(sh.x,sh.y);ctx.lineTo(dh.x,dh.y);
+    const sevColors={critical:'rgba(255,59,92,.4)',high:'rgba(255,123,53,.3)',medium:'rgba(245,197,24,.3)',low:'rgba(0,212,255,.2)'};
+    ctx.strokeStyle=sevColors[c.severity]||'rgba(0,212,255,.15)';ctx.lineWidth=c.severity==='critical'?2:1;ctx.stroke();
+  });
+  // Draw hosts
+  hosts.forEach(h=>{
+    const hasAlert=h.active_alerts.length>0;
+    const color=hasAlert?'#ff3b5c':h.traffic>0?'#4caf7d':'#5a6475';
+    ctx.beginPath();ctx.arc(h.x,h.y,hasAlert?20:16,0,Math.PI*2);
+    ctx.fillStyle=hasAlert?'rgba(255,59,92,.12)':'rgba(17,20,24,.8)';
+    ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=hasAlert?2.5:1.5;ctx.stroke();
+    if(hasAlert){ctx.beginPath();ctx.arc(h.x,h.y,26,0,Math.PI*2);ctx.strokeStyle='rgba(255,59,92,.3)';ctx.lineWidth=1;ctx.stroke();}
+    ctx.font='13px Arial';ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(h.icon,h.x,h.y);
+    ctx.font='bold 10px IBM Plex Mono, monospace';ctx.fillStyle='#c8d0db';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(h.name,h.x,h.y+24);
+    ctx.font='9px IBM Plex Mono, monospace';ctx.fillStyle='#5a6475';ctx.fillText(h.ip,h.x,h.y+36);
+    if(hasAlert){ctx.font='bold 9px monospace';ctx.fillStyle='#ff3b5c';ctx.fillText(`⚠ ${h.active_alerts.length}`,h.x,h.y+46);}
+  });
+  // Click handler
+  canvas.onclick=e=>{
+    const rect=canvas.getBoundingClientRect();const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    const scx=canvas.width/rect.width,scy=canvas.height/rect.height;
+    const cx=mx*scx,cy=my*scy;
+    const hit=hosts.find(h=>Math.hypot(h.x-cx,h.y-cy)<24);
+    if(hit)showHostDetail(hit);
+  };
+}
+
+function showHostDetail(host){
+  const d=document.getElementById('host-detail');d.style.display='block';
+  d.innerHTML=`<div style="display:flex;align-items:center;gap:14px">
+    <div style="font-size:32px">${host.icon}</div>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:600;color:var(--text-bright)">${host.name}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent)">${host.ip}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px">OS: ${host.os}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px">Traffic: ${host.traffic} pkts</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;background:${host.active_alerts.length?'var(--critical-dim)':'var(--surface2)'};border:1px solid ${host.active_alerts.length?'rgba(255,59,92,.3)':'var(--border)'};border-radius:4px;color:${host.active_alerts.length?'var(--critical)':'var(--text)'}">
+        ${host.active_alerts.length?`⚠ ${host.active_alerts.length} active alert${host.active_alerts.length>1?'s':''}` : '✓ Clean'}
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+    ${(host.services||[]).map(s=>`<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text-dim)">${s}</span>`).join('')}
+  </div>`;
+}
+
+// ══ War Room ═════════════════════════════════════════════════════════════════
+async function fetchWarRoom(){
+  const d=await fetch('/api/war_room').then(r=>r.json());
+  const s=d.state;
+  if(s.complete&&s.result){showWarRoomResults(s.result);return;}
+  if(s.active){showWarRoomActive(s,d);return;}
+  // Show lobby
+  document.getElementById('wr-lobby').style.display='block';
+  document.getElementById('wr-active').style.display='none';
+  document.getElementById('wr-results').style.display='none';
+  document.getElementById('wr-scenarios').innerHTML=d.scenarios.map(sc=>`
+    <div class="scenario-card" onclick="startWarRoom('${sc.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div style="font-size:14px;font-weight:600;color:var(--text-bright)">${sc.name}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent)">+${sc.sla_xp} XP</div>
+      </div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">${sc.description}</div>
+      <div style="display:flex;gap:12px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim)">
+        <span>⏱ ${sc.duration}s</span>
+        <span>🎯 Clear ${sc.required_clears} alerts</span>
+        <span>⚔ ${sc.attacks.length} attack types</span>
+      </div>
+    </div>`).join('');
+}
+
+function showWarRoomActive(s,d){
+  document.getElementById('wr-lobby').style.display='none';
+  document.getElementById('wr-active').style.display='block';
+  document.getElementById('wr-results').style.display='none';
+  if(s.scenario)document.getElementById('wr-name').textContent='⚔️ '+s.scenario.name;
+  document.getElementById('warroom-tab').classList.add('war-active');
+  if(warRoomInterval)clearInterval(warRoomInterval);
+  warRoomInterval=setInterval(async()=>{
+    const wd=await fetch('/api/war_room').then(r=>r.json());
+    const ws=wd.state;
+    if(ws.complete){clearInterval(warRoomInterval);document.getElementById('warroom-tab').classList.remove('war-active');showWarRoomResults(ws.result);return;}
+    const rem=ws.remaining||0;
+    const mins=Math.floor(rem/60),secs=rem%60;
+    const timerEl=document.getElementById('wr-timer');
+    timerEl.textContent=`${mins}:${secs.toString().padStart(2,'0')}`;
+    timerEl.className='war-timer '+(rem>120?'safe':rem>60?'ok':'');
+    document.getElementById('wr-cleared').textContent=ws.cleared.length;
+    document.getElementById('wr-required').textContent=ws.scenario?.required_clears||0;
+    document.getElementById('wr-open').textContent=allAlerts.filter(a=>a.status==='open').length;
+  },1000);
+}
+
+function showWarRoomResults(result){
+  document.getElementById('wr-lobby').style.display='none';
+  document.getElementById('wr-active').style.display='none';
+  document.getElementById('wr-results').style.display='block';
+  document.getElementById('warroom-tab').classList.remove('war-active');
+  if(warRoomInterval)clearInterval(warRoomInterval);
+  if(result.aborted){document.getElementById('wr-results-content').innerHTML='<div style="color:var(--text-dim);font-family:\'IBM Plex Mono\',monospace">Scenario aborted.</div><br><button class="btn btn-accent" onclick="fetchWarRoom()">Return to Lobby</button>';return;}
+  const success=result.success;
+  document.getElementById('wr-results-content').innerHTML=`
+    <div style="font-size:32px;margin-bottom:12px">${success?'🏆':'💀'}</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:${success?'var(--green)':'var(--critical)'};margin-bottom:8px">${success?'MISSION SUCCESS':'MISSION FAILED'}</div>
+    <div style="font-size:14px;color:var(--text-dim);margin-bottom:20px">${success?'You contained the incident in time.':'Too many threats remained unresolved.'}</div>
+    <div style="display:flex;justify-content:center;gap:30px;font-family:'IBM Plex Mono',monospace;font-size:13px;margin-bottom:20px">
+      <div>Cleared: <span style="color:var(--green)">${result.cleared}</span></div>
+      <div>Required: <span style="color:var(--accent)">${result.required}</span></div>
+      <div>XP Earned: <span style="color:var(--accent)">+${result.xp}</span></div>
+    </div>
+    <button class="btn btn-accent" onclick="fetchWarRoom()">Return to Lobby</button>`;
+  fetchAnalyst();
+}
+
+async function startWarRoom(id){
+  await fetch('/api/war_room/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenario_id:id})});
+  fetchWarRoom();
+}
+
+async function abortWarRoom(){
+  await fetch('/api/war_room/abort',{method:'POST'});
+  if(warRoomInterval)clearInterval(warRoomInterval);
+  document.getElementById('warroom-tab').classList.remove('war-active');
+  fetchWarRoom();
+}
+
+// ══ Wiki ═════════════════════════════════════════════════════════════════════
+async function loadWiki(){
+  wikiLoaded=true;
+  const wiki=await fetch('/api/wiki').then(r=>r.json());
+  const riskColor={critical:'var(--critical)',high:'var(--high)',medium:'var(--medium)',low:'var(--low)'};
+  // Attacks
+  document.getElementById('wiki-attacks').innerHTML=wiki.attacks.map(a=>`
+    <div class="wiki-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <h3>${a.name}</h3>
+        <div style="display:flex;gap:7px">
+          <span class="sev sev-${a.severity}">${a.severity}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 7px;background:var(--surface3);border:1px solid var(--border2);border-radius:3px;color:var(--accent)">${a.mitre}</span>
+          <span style="font-size:10px;padding:2px 7px;background:var(--surface3);border:1px solid var(--border2);border-radius:3px;color:var(--text-dim)">${a.category}</span>
+        </div>
+      </div>
+      <p style="margin-bottom:10px">${a.description}</p>
+      <div style="display:flex;gap:12px;font-size:11px">
+        <div style="flex:1"><div style="font-size:9px;color:var(--medium);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;margin-bottom:4px">Key Indicators</div>${a.indicators.map(i=>`<div style="color:var(--text-dim);margin-bottom:2px">• ${i}</div>`).join('')}</div>
+        <div style="flex:1"><div style="font-size:9px;color:var(--green);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;margin-bottom:4px">Response</div><div style="color:var(--text-dim)">${a.response}</div></div>
+      </div>
+    </div>`).join('');
+  // Ports
+  document.getElementById('wiki-ports').innerHTML=`<table class="port-table"><thead><tr><th>Port</th><th>Service</th><th>Risk</th><th>Notes</th></tr></thead><tbody>${wiki.ports.map(p=>`<tr><td style="color:var(--accent)">${p.port}</td><td style="color:var(--text-bright);font-weight:500">${p.name}</td><td><span class="sev sev-${p.risk}">${p.risk}</span></td><td style="color:var(--text-dim)">${p.notes}</td></tr>`).join('')}</tbody></table>`;
+  // Concepts
+  document.getElementById('wiki-concepts').innerHTML=wiki.concepts.map(c=>`<div class="wiki-card"><h3>${c.name}</h3><p>${c.content}</p></div>`).join('');
+}
+
+// ══ Rules / Intel ════════════════════════════════════════════════════════════
+async function toggleRule(id){const d=await fetch(`/api/rules/${id}/toggle`,{method:'POST'}).then(r=>r.json());toast(`Rule ${id} ${d.enabled?'enabled':'disabled'}`,d.enabled?'ok':'warn');}
+async function blockIpManual(){const ip=document.getElementById('block-input').value.trim();if(!ip)return;await fetch('/api/threat_intel/block',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip})});document.getElementById('block-input').value='';toast(`${ip} blocked`,'ok');fetchIntel();}
+async function unblockIp(ip){await fetch('/api/threat_intel/unblock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip})});toast(`${ip} unblocked`);fetchIntel();}
+async function clearAlerts(){if(!confirm('Clear all alerts?'))return;await fetch('/api/clear_alerts',{method:'POST'});closeModal();fetchAlerts();toast('Alerts cleared');}
+
+// ══ Simulation ════════════════════════════════════════════════════════════════
+async function simulate(type){
+  const log=document.getElementById('sim-log');
+  log.innerHTML+=`<span style="color:var(--medium)">» ${type.replace(/_/g,' ')}...</span><br>`;
+  const d=await fetch(`/api/simulate/${type}`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).then(r=>r.json());
+  log.innerHTML+=`<span style="color:var(--green)">✓ ${d.message}</span><br>`;
+  log.scrollTop=log.scrollHeight;
+  toast('Attack injected — check Alerts tab','warn');
+  setTimeout(fetchAlerts,600);setTimeout(fetchAlerts,2500);
+}
+async function simulateAll(){for(const t of['port_scan','brute_force','c2_beacon','data_exfil','dns_tunnel','arp_spoof','ransomware','lateral_movement','priv_escalation','blocked_ip']){await simulate(t);await new Promise(r=>setTimeout(r,800));}}
+
+// ══ CTF Mode ══════════════════════════════════════════════════════════════════
+let ctfChallenges = [];
+let ctfActiveId   = null;
+let ctfCategory   = 'all';
+
+async function fetchCTF() {
+  const [challenges, board] = await Promise.all([
+    fetch('/api/ctf/challenges').then(r => r.json()),
+    fetch('/api/ctf/scoreboard').then(r => r.json()),
+  ]);
+  ctfChallenges = challenges;
+  renderCTFList();
+  renderCTFScoreboard(board);
+}
+
+function ctfSetCategory(cat, btn) {
+  ctfCategory = cat;
+  document.querySelectorAll('#tab-ctf .fbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCTFList();
+}
+
+const diffColor = { easy: 'var(--low)', medium: 'var(--medium)', hard: 'var(--critical)' };
+const diffBg    = { easy: 'var(--low-dim)', medium: 'var(--medium-dim)', hard: 'var(--critical-dim)' };
+
+function renderCTFList() {
+  const list = ctfChallenges.filter(c => ctfCategory === 'all' || c.category === ctfCategory);
+  const el = document.getElementById('ctf-challenge-list');
+  if (!list.length) { el.innerHTML = '<div class="empty">No challenges in this category.</div>'; return; }
+
+  // Group by category
+  const cats = [...new Set(list.map(c => c.category))];
+  el.innerHTML = cats.map(cat => {
+    const chs = list.filter(c => c.category === cat);
+    return `<div style="margin-bottom:14px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;margin-bottom:7px;padding-left:2px">${cat}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">
+        ${chs.map(c => ctfCardHTML(c)).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function ctfCardHTML(c) {
+  const active  = ctfActiveId === c.id;
+  const pct     = Math.round(c.answered_correctly / c.total_questions * 100);
+  const border  = c.solved ? 'rgba(0,255,136,.3)' : active ? 'var(--accent-border)' : 'var(--border)';
+  const bg      = c.solved ? 'rgba(0,255,136,.03)' : active ? 'var(--accent-dim)' : 'var(--surface2)';
+  return `<div style="background:${bg};border:1px solid ${border};border-radius:7px;padding:13px;cursor:pointer;transition:border-color .15s" onclick="ctfOpenChallenge('${c.id}')">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+      <div>
+        <div style="font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--text-dim);margin-bottom:2px">${c.id}</div>
+        <div style="font-size:12px;font-weight:600;color:${c.solved ? 'var(--green)' : 'var(--text-bright)'}">${c.solved ? '✓ ' : ''}${c.title}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:var(--accent)">${c.solved ? c.points_earned : c.points}<span style="font-size:9px;color:var(--text-dim)"> pts</span></div>
+        <div style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-family:'IBM Plex Mono',monospace;font-weight:700;background:${diffBg[c.difficulty]};color:${diffColor[c.difficulty]};border:1px solid ${diffColor[c.difficulty]}33;margin-top:2px">${c.difficulty.toUpperCase()}</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-dim);line-height:1.5;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${c.description}</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="flex:1;height:3px;background:var(--border2);border-radius:2px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${c.solved ? 'var(--green)' : 'var(--accent)'};border-radius:2px;transition:width .4s ease"></div>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim)">${c.answered_correctly}/${c.total_questions}</div>
+      ${c.hints_used.length ? `<div style="font-size:9px;color:var(--medium)">💡×${c.hints_used.length}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function ctfOpenChallenge(id) {
+  ctfActiveId = id;
+  renderCTFList();
+  const ch = ctfChallenges.find(c => c.id === id);
+  if (!ch) return;
+  const ws = document.getElementById('ctf-workspace');
+  ws.style.display = 'block';
+  ws.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  ws.innerHTML = buildWorkspace(ch);
+}
+
+function buildWorkspace(ch) {
+  const evidenceHTML = buildEvidence(ch.evidence);
+  const questionsHTML = ch.questions.map(q => {
+    const answered = ch.answers[q.id];
+    const correct  = answered === true;
+    const wrong    = answered === false;
+    return `<div style="margin-bottom:12px;padding:12px;background:${correct ? 'rgba(0,255,136,.04)' : wrong ? 'rgba(255,59,92,.04)' : 'var(--surface2)'};border:1px solid ${correct ? 'rgba(0,255,136,.2)' : wrong ? 'rgba(255,59,92,.2)' : 'var(--border)'};border-radius:6px">
+      <div style="font-size:12px;color:var(--text-bright);margin-bottom:8px;line-height:1.5">
+        <span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);margin-right:6px">${q.id.toUpperCase()}</span>${q.text}
+        ${correct ? '<span style="color:var(--green);margin-left:8px">✓</span>' : wrong ? '<span style="color:var(--critical);margin-left:8px">✗ — try again</span>' : ''}
+      </div>
+      ${!correct ? `<div style="display:flex;gap:6px">
+        <input id="ans-${ch.id}-${q.id}" class="ip-input" placeholder="Your answer…" style="flex:1" onkeydown="if(event.key==='Enter')ctfSubmitAnswer('${ch.id}','${q.id}')">
+        <button class="btn btn-accent" onclick="ctfSubmitAnswer('${ch.id}','${q.id}')">Submit</button>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+
+  const hint1 = ch.hints_used.includes('hint1');
+  const hint2 = ch.hints_used.includes('hint2');
+
+  return `<div class="panel" style="margin-top:14px">
+    <div class="panel-hdr" style="justify-content:space-between">
+      <span>🔍 ${ch.id} — ${ch.title}</span>
+      <div style="display:flex;align-items:center;gap:7px">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:${diffColor[ch.difficulty]}">${ch.difficulty.toUpperCase()}</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent)">${ch.points} pts</span>
+        <button class="modal-close" onclick="document.getElementById('ctf-workspace').style.display='none';ctfActiveId=null;renderCTFList()">×</button>
+      </div>
+    </div>
+    <div style="padding:14px">
+      <!-- Description -->
+      <div style="font-size:12px;color:var(--text);line-height:1.7;margin-bottom:14px;padding:11px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:5px">${ch.description}</div>
+
+      <!-- Evidence -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;font-family:'IBM Plex Mono',monospace;margin-bottom:7px">📂 Evidence</div>
+        ${evidenceHTML}
+      </div>
+
+      <!-- Hints -->
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        ${!hint1 ? `<button class="btn btn-hint" onclick="ctfGetHint('${ch.id}',1)">💡 Hint 1 (−${ch.hint1_cost} pts)</button>` : `<div style="flex:1;padding:8px 11px;background:rgba(245,197,24,.04);border:1px solid rgba(245,197,24,.2);border-radius:5px;font-size:11px;color:var(--text)" id="hint1-${ch.id}">💡 <b>Hint 1:</b> <span class="ctf-hint-text" data-id="${ch.id}" data-num="1"></span></div>`}
+        ${!hint2 ? `<button class="btn btn-hint" onclick="ctfGetHint('${ch.id}',2)">💡 Hint 2 (−${ch.hint2_cost} pts)</button>` : `<div style="flex:1;padding:8px 11px;background:rgba(245,197,24,.04);border:1px solid rgba(245,197,24,.2);border-radius:5px;font-size:11px;color:var(--text)" id="hint2-${ch.id}">💡 <b>Hint 2:</b> <span class="ctf-hint-text" data-id="${ch.id}" data-num="2"></span></div>`}
+      </div>
+
+      <!-- Questions -->
+      <div>
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;font-family:'IBM Plex Mono',monospace;margin-bottom:9px">❓ Questions — answer all to capture the flag</div>
+        ${ch.solved ? `<div style="padding:14px;background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.25);border-radius:6px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:var(--text-dim);margin-bottom:5px">Flag captured!</div><div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:var(--green);word-break:break-all" id="ws-flag-${ch.id}">Loading…</div></div>` : ''}
+        ${questionsHTML}
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildEvidence(ev) {
+  let out = '';
+  if (ev.packets) {
+    out += `<div style="margin-bottom:10px">
+      <div style="font-size:9px;color:var(--accent);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Packet Capture</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;overflow:hidden">
+        <div style="display:grid;grid-template-columns:30px 90px 130px 130px 50px 1fr;padding:4px 10px;border-bottom:1px solid var(--border);font-size:9px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;gap:6px"><span>No.</span><span>Time</span><span>Source</span><span>Destination</span><span>Proto</span><span>Info</span></div>
+        ${ev.packets.map((p,i) => `<div style="display:grid;grid-template-columns:30px 90px 130px 130px 50px 1fr;padding:4px 10px;border-bottom:1px solid var(--border);font-size:10px;font-family:'IBM Plex Mono',monospace;gap:6px;background:${i%2===0?'transparent':'rgba(255,255,255,.01)'}"><span style="color:var(--text-dim)">${p.no}</span><span style="color:var(--text-dim)">${p.time}</span><span style="color:var(--low)">${p.src}</span><span style="color:var(--high)">${p.dst}</span><span style="color:var(--accent)">${p.proto}</span><span style="color:var(--text)">${p.info}</span></div>`).join('')}
+      </div>
+      ${ev.notes ? `<div style="margin-top:5px;font-size:10px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;font-style:italic">📝 ${ev.notes}</div>` : ''}
+      ${ev.dns_log ? `<div style="margin-top:5px;font-size:10px;color:var(--medium);font-family:'IBM Plex Mono',monospace">🌐 DNS: ${ev.dns_log}</div>` : ''}
+      ${ev.threat_intel ? `<div style="margin-top:5px;font-size:10px;color:var(--critical);font-family:'IBM Plex Mono',monospace">🚨 Threat Intel: ${ev.threat_intel}</div>` : ''}
+      ${ev.tls_sni ? `<div style="margin-top:5px;font-size:10px;color:var(--high);font-family:'IBM Plex Mono',monospace">🔐 TLS SNI: ${ev.tls_sni}</div>` : ''}
+    </div>`;
+  }
+  if (ev.logs) {
+    out += `<div>
+      <div style="font-size:9px;color:var(--low);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Log Entries</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:9px 12px;max-height:280px;overflow-y:auto">
+        ${ev.logs.map(line => {
+          if (!line.trim()) return '<div style="height:6px"></div>';
+          const isHdr = line.startsWith('--') || line.startsWith('===');
+          const col   = line.includes('ERROR')||line.includes('FAIL')||line.includes('SUSPICIOUS')||line.includes('AV ALERT') ? 'var(--critical)'
+                      : line.includes('EventID:4688')||line.includes('EventID:4624') ? 'var(--accent)'
+                      : line.includes('wget')||line.includes('payload')||line.includes('beacon')||line.includes('mimikatz')||line.includes('shadow')||line.includes('.locked') ? 'var(--high)'
+                      : isHdr ? 'var(--medium)' : 'var(--text)';
+          return `<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:${col};line-height:1.7;white-space:pre-wrap">${line}</div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+  if (ev.file_server_logs) {
+    out += `<div style="margin-top:8px"><div style="font-size:9px;color:var(--high);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">File Server Logs</div><div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:9px 12px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--high);white-space:pre-wrap">${ev.file_server_logs}</div></div>`;
+  }
+  if (ev.decode_hint) {
+    out += `<div style="margin-top:6px;font-size:10px;color:var(--medium);font-family:'IBM Plex Mono',monospace;padding:7px 10px;background:rgba(245,197,24,.04);border:1px solid rgba(245,197,24,.15);border-radius:4px">💡 ${ev.decode_hint}</div>`;
+  }
+  return out;
+}
+
+async function ctfSubmitAnswer(chId, qId) {
+  const input = document.getElementById(`ans-${chId}-${qId}`);
+  if (!input) return;
+  const answer = input.value.trim();
+  if (!answer) { toast('Enter an answer first', 'warn'); return; }
+  const res = await fetch('/api/ctf/answer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ challenge_id: chId, question_id: qId, answer })
+  }).then(r => r.json());
+
+  // Refresh challenge data
+  await fetchCTF();
+  const ch = ctfChallenges.find(c => c.id === chId);
+  if (ch) {
+    document.getElementById('ctf-workspace').innerHTML = buildWorkspace(ch);
+    // Re-load stored hints into workspace
+    ch.hints_used.forEach(hk => {
+      const num = parseInt(hk.replace('hint',''));
+      loadHintText(chId, num);
+    });
+  }
+
+  if (res.correct) {
+    toast(`✓ Correct! (${res.answered_correctly}/${res.total_questions})`, 'ok');
+    if (res.solved) showFlag(chId, res.flag, res.points_earned);
+  } else {
+    toast('✗ Incorrect — check your answer', 'err');
+    input.style.borderColor = 'var(--critical)';
+    setTimeout(() => { if(input) input.style.borderColor = ''; }, 1200);
+  }
+}
+
+async function ctfGetHint(chId, num) {
+  const res = await fetch('/api/ctf/hint', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ challenge_id: chId, hint_num: num })
+  }).then(r => r.json());
+  if (!res.already_purchased)
+    toast(`Hint ${num} purchased (−${res.cost} pts from final score)`, 'warn');
+  await fetchCTF();
+  const ch = ctfChallenges.find(c => c.id === chId);
+  if (ch) {
+    document.getElementById('ctf-workspace').innerHTML = buildWorkspace(ch);
+    ch.hints_used.forEach(hk => {
+      const n = parseInt(hk.replace('hint',''));
+      loadHintText(chId, n);
+    });
+  }
+}
+
+function loadHintText(chId, num) {
+  // Fetch the hint text and populate it
+  fetch('/api/ctf/hint', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ challenge_id: chId, hint_num: num })
+  }).then(r => r.json()).then(res => {
+    const spans = document.querySelectorAll(`.ctf-hint-text[data-id="${chId}"][data-num="${num}"]`);
+    spans.forEach(s => s.textContent = res.hint);
+  });
+}
+
+function showFlag(chId, flag, points) {
+  document.getElementById('ctf-flag-text').textContent = flag;
+  document.getElementById('ctf-flag-pts').textContent = `+${points} points earned · +${points} XP`;
+  document.getElementById('ctf-flag-modal').classList.add('open');
+  fetchAnalyst();
+}
+
+function renderCTFScoreboard(board) {
+  document.getElementById('ctf-total-pts').textContent = board.total_points;
+  document.getElementById('ctf-solved-count').textContent = `${board.solved_count} / ${board.total_count} challenges solved`;
+  const catEl = document.getElementById('ctf-cat-scores');
+  const catColors = {
+    'Network Forensics': 'var(--accent)',
+    'Log Analysis': 'var(--low)',
+    'Malware Indicators': 'var(--critical)',
+    'Incident Response': 'var(--high)',
+    'Threat Hunting': 'var(--purple)',
+  };
+  catEl.innerHTML = Object.entries(board.by_category).map(([cat, data]) => {
+    const pct = data.max_points > 0 ? Math.round(data.points / data.max_points * 100) : 0;
+    const col = catColors[cat] || 'var(--accent)';
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px;font-family:'IBM Plex Mono',monospace;font-size:10px">
+        <span style="color:${col}">${cat}</span>
+        <span style="color:var(--text-dim)">${data.solved}/${data.total} · ${data.points}pts</span>
+      </div>
+      <div style="height:4px;background:var(--border2);border-radius:2px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${col};border-radius:2px;transition:width .5s ease"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function ctfReset() {
+  if (!confirm('Reset all CTF progress? This cannot be undone.')) return;
+  await fetch('/api/ctf/reset', { method: 'POST' });
+  ctfActiveId = null;
+  document.getElementById('ctf-workspace').style.display = 'none';
+  await fetchCTF();
+  toast('CTF progress reset', 'warn');
+}
+
+// ══ Polling ═══════════════════════════════════════════════════════════════════════
+function refresh(){fetchStats();fetchAlerts();fetchEvents();fetchAnalyst();}
+refresh();fetchRules();fetchIntel();fetchMissions();updateDiffBadge();
+setInterval(refresh,2000);
+setInterval(fetchRules,10000);
+setInterval(fetchIntel,5000);
+setInterval(()=>{if(document.getElementById('tab-logs').classList.contains('active'))fetchLogs();},3000);
+setInterval(()=>{if(document.getElementById('tab-ctf').classList.contains('active'))fetchCTF();},8000);
+setInterval(()=>{if(document.getElementById('tab-network').classList.contains('active'))drawNetwork();},5000);
+</script>
+</body>
+</html>
